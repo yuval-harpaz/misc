@@ -1,4 +1,3 @@
-# manual war update
 name: manual updates
 on:
   workflow_dispatch:
@@ -9,9 +8,8 @@ permissions: write-all
   # contents: read
 
 jobs:
-  alarms-fig:
+  seqer:
     runs-on: ubuntu-latest
-    environment: rockets
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.10
