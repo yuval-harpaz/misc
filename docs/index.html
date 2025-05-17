@@ -23,6 +23,13 @@
     <link rel="icon"      href="logo.png">
     <link rel="stylesheet" type="text/css" href="oct7database.css">
 </head>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelector('.menu-toggle').addEventListener('click', function() {
+            document.querySelector('.menu-links').classList.toggle('open');
+        });
+    });
+</script>
 <body>
     
     <div class="container1">
