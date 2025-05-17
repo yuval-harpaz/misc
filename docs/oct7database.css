@@ -139,7 +139,7 @@ nav a {
 
     .container1 {
         background-size: 80px 80px; /* Smaller logo for phones */
-        background-position: top right; /* Optional: shift position */
+        background-position: top left; /* Optional: shift position */
         padding-top: 100px; /* Add space so content doesn't overlap the logo */
     }
 
