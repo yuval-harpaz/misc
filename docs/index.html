@@ -23,22 +23,12 @@
     <link rel="icon"      href="logo.png">
     <link rel="stylesheet" type="text/css" href="oct7database.css">
 </head>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const toggle = document.querySelector('.menu-toggle');
-        const links = document.querySelector('.menu-links');
-        if (toggle && links) {
-            toggle.addEventListener('click', function () {
-                links.classList.toggle('open');
-            });
-        }
-    });
-</script>
+
 <body>
     
     <div class="container1">
         <nav>
-            <button class="menu-toggle">תפריט ☰</button>
+            <button class="menu-toggle">☰</button>
             <div class="menu-links">
                 <a href="index.html">דף הבית</a>
                 <a href="team.html">הצוות ושיתופי פעולה</a>
@@ -68,8 +58,14 @@
     <iframe class="google-sheet" src="https://docs.google.com/spreadsheets/d/1OkULZJGPRnQFSr2MkYEPS54bXj9Rr91TEmTnAIRhsJU/edit?gid=1914466998#gid=1914466998/pubhtml"></iframe>
 </div>
 <script>
-    document.querySelector('.menu-toggle').addEventListener('click', function() {
-        document.querySelector('.menu-links').classList.toggle('open');
+    document.addEventListener("DOMContentLoaded", function () {
+        const toggle = document.querySelector('.menu-toggle');
+        const links = document.querySelector('.menu-links');
+        if (toggle && links) {
+            toggle.addEventListener('click', function () {
+                links.classList.toggle('open');
+            });
+        }
     });
 </script>
 </body>
