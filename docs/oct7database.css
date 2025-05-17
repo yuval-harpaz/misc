@@ -45,6 +45,10 @@ nav {
     cursor: pointer;
     font-weight: bold;
 }
+.menu-links {
+    display: flex;
+    gap: 20px;
+}
 nav a {
     margin: 0 10px;
     text-decoration: none;
@@ -86,12 +90,7 @@ nav a {
     height: 20px;
     margin-left: 5px;
 }
-.menu-links {
-    display: none;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-}
+
 @media (max-width: 600px) {
     body {
         padding: 10px;
@@ -113,9 +112,11 @@ nav a {
         display: flex;
     }
 
-    .menu-links a {
-        font-size: 16px;
-        padding: 6px 0;
+    .menu-links {
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
     }
 
     nav a {

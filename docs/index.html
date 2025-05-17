@@ -25,9 +25,13 @@
 </head>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        document.querySelector('.menu-toggle').addEventListener('click', function() {
-            document.querySelector('.menu-links').classList.toggle('open');
-        });
+        const toggle = document.querySelector('.menu-toggle');
+        const links = document.querySelector('.menu-links');
+        if (toggle && links) {
+            toggle.addEventListener('click', function () {
+                links.classList.toggle('open');
+            });
+        }
     });
 </script>
 <body>
