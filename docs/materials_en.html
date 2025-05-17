@@ -39,5 +39,16 @@ Open the map:
         </div>
         <iframe src="https://oct7map.com/" width="500" height="500"></iframe>
     </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const toggle = document.querySelector('.menu-toggle');
+        const links = document.querySelector('.menu-links');
+        if (toggle && links) {
+            toggle.addEventListener('click', function () {
+                links.classList.toggle('open');
+            });
+        }
+    });
+</script>
 </body>
 </html>
