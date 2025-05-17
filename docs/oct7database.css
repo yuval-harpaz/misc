@@ -4,7 +4,6 @@ body {
     background-size: cover;
     font-family: Arial, sans-serif;
     color: #333;
-    text-align: right;
     padding: 20px;
 }
 .container1 {
@@ -16,6 +15,17 @@ body {
     background-image: url('logo.png');
     background-repeat: no-repeat;
     background-size: 150px 150px;
+}
+/* Hebrew version (default RTL) */
+:dir(rtl) .container1 {
+    background-position: top left;
+    text-align: right;
+}
+
+/* English version (LTR) */
+:dir(ltr) .container1 {
+    background-position: top right;
+    text-align: left;
 }
 .container {
     max-width: 900px;
