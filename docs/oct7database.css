@@ -117,17 +117,17 @@ nav a {
         margin-bottom: 10px;
     }
 
-
-    .menu-links.open {
-        display: flex;
-    }
-
     .menu-links {
         display: none;
         flex-direction: column;
         gap: 10px;
         width: 100%;
     }
+    
+    .menu-links.open {
+        display: flex;
+    }
+
 
     nav a {
         font-size: 16px;
