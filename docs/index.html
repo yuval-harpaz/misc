@@ -27,9 +27,13 @@
     
     <div class="container1">
         <nav>
-            <a href="index.html">דף הבית</a>
-            <a href="team.html">הצוות ושיתופי פעולה</a>
-            <a href="materials.html">חומרים ומידע</a>
+            <button class="menu-toggle">תפריט ☰</button>
+            <div class="menu-links">
+                <a href="index.html">דף הבית</a>
+                <a href="team.html">הצוות ושיתופי פעולה</a>
+                <a href="materials.html">חומרים ומידע</a>
+                <a href="index_En.html">English</a>
+            </div>
         </nav>
         <h1>oct7database</h1>
         <h2>מאגר המידע הציבורי לאירועי שבעה באוקטובר ומלחמת חרבות ברזל</h2>
@@ -52,6 +56,11 @@
 <div>
     <iframe class="google-sheet" src="https://docs.google.com/spreadsheets/d/1OkULZJGPRnQFSr2MkYEPS54bXj9Rr91TEmTnAIRhsJU/edit?gid=1914466998#gid=1914466998/pubhtml"></iframe>
 </div>
+<script>
+    document.querySelector('.menu-toggle').addEventListener('click', function() {
+        document.querySelector('.menu-links').classList.toggle('open');
+    });
+</script>
 </body>
 </html>
 
