@@ -167,6 +167,11 @@ nav a {
     :dir(rtl) .container {
         text-align: right;
         direction: rtl;
+        float: right;
+        margin-right: 0;
+        margin-left: auto;
+        width: 100vw;
+        box-sizing: border-box;
         overflow-x: visible;
     }
     :dir(rtl) .map-container,
@@ -174,6 +179,9 @@ nav a {
         margin-right: 0;
         margin-left: auto;
         direction: rtl;
+        float: right;
+        width: 100vw;
+        box-sizing: border-box;
         overflow-x: auto;
     }
 }
