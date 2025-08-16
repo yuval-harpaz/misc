@@ -163,44 +163,20 @@ nav a {
         height: auto;
     }
 
-    /* RTL mobile: anchor main containers to the right */
-    :dir(rtl) .container1, 
-    :dir(rtl) .container,
-    [dir="rtl"] .container1,
-    [dir="rtl"] .container {
-        text-align: right;
-        direction: rtl;
-        margin-right: 0;
-        margin-left: auto; /* stick to right, overflow to left */
-        width: 100vw;
+    /* Mobile: fit maps and tables (iframes/images) within viewport (LTR + RTL) */
+    .iframe-container iframe,
+    iframe,
+    .google-sheet,
+    .map-container img {
+        width: 100% !important;
+        max-width: 100%;
         box-sizing: border-box;
-        overflow-x: visible;
     }
 
-    /* RTL mobile: right-align wide embeds so extra width goes left */
-    :dir(rtl) .iframe-container,
-    [dir="rtl"] .iframe-container,
-    :dir(rtl) .map-container,
-    [dir="rtl"] .map-container {
-        overflow-x: auto; /* enable horizontal scroll when needed */
-        -webkit-overflow-scrolling: touch;
-        direction: rtl;
-        margin-right: 0;
-        margin-left: auto;
-        width: 100%;
-        box-sizing: border-box;
-        text-align: right;
-    }
-
-    :dir(rtl) .iframe-container iframe,
-    [dir="rtl"] .iframe-container iframe,
-    :dir(rtl) .map-container iframe,
-    [dir="rtl"] .map-container iframe,
-    :dir(rtl) .google-sheet,
-    [dir="rtl"] .google-sheet {
-        display: block;
-        margin-right: 0;   /* anchor to right edge */
-        margin-left: auto; /* overflow extends to the left */
+    /* Keep a reasonable height on mobile for embeds */
+    .iframe-container iframe,
+    iframe {
+        height: 400px;
     }
 }
 
