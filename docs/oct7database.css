@@ -163,26 +163,44 @@ nav a {
         height: auto;
     }
 
+    /* RTL mobile: anchor main containers to the right */
     :dir(rtl) .container1, 
-    :dir(rtl) .container {
+    :dir(rtl) .container,
+    [dir="rtl"] .container1,
+    [dir="rtl"] .container {
         text-align: right;
         direction: rtl;
-        float: right;
         margin-right: 0;
-        margin-left: auto;
+        margin-left: auto; /* stick to right, overflow to left */
         width: 100vw;
         box-sizing: border-box;
         overflow-x: visible;
     }
+
+    /* RTL mobile: right-align wide embeds so extra width goes left */
+    :dir(rtl) .iframe-container,
+    [dir="rtl"] .iframe-container,
     :dir(rtl) .map-container,
-    :dir(rtl) .google-sheet {
+    [dir="rtl"] .map-container {
+        overflow-x: auto; /* enable horizontal scroll when needed */
+        -webkit-overflow-scrolling: touch;
+        direction: rtl;
         margin-right: 0;
         margin-left: auto;
-        direction: rtl;
-        float: right;
-        width: 100vw;
+        width: 100%;
         box-sizing: border-box;
-        overflow-x: auto;
+        text-align: right;
+    }
+
+    :dir(rtl) .iframe-container iframe,
+    [dir="rtl"] .iframe-container iframe,
+    :dir(rtl) .map-container iframe,
+    [dir="rtl"] .map-container iframe,
+    :dir(rtl) .google-sheet,
+    [dir="rtl"] .google-sheet {
+        display: block;
+        margin-right: 0;   /* anchor to right edge */
+        margin-left: auto; /* overflow extends to the left */
     }
 }
 
