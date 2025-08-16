@@ -162,6 +162,20 @@ nav a {
         max-width: 100px;
         height: auto;
     }
+
+    :dir(rtl) .container1, 
+    :dir(rtl) .container {
+        text-align: right;
+        direction: rtl;
+        overflow-x: visible;
+    }
+    :dir(rtl) .map-container,
+    :dir(rtl) .google-sheet {
+        margin-right: 0;
+        margin-left: auto;
+        direction: rtl;
+        overflow-x: auto;
+    }
 }
 
 
