@@ -51,43 +51,44 @@
     </div>
   </div>
   <div id="pdf-container" style="text-align: center; padding: 20px;">
-    <!-- Try Google Docs PDF viewer first -->
-    <iframe id="pdf-viewer" 
-            src="https://docs.google.com/viewer?url=https://raw.githubusercontent.com/yuval-harpaz/misc/main/docs/civil_power.pdf&embedded=true" 
-            style="width: 100%; height: calc(100vh - 200px); border: none;">
-    </iframe>
-    
-    <!-- Fallback message and direct link -->
-    <div id="fallback-message" style="display: none; padding: 20px; background-color: #f8f9fa; border-radius: 5px; margin-top: 20px;">
-      <p style="margin-bottom: 15px;">אין אפשרות להציג את הקובץ ישירות בדפדפן</p>
-      <a href="https://raw.githubusercontent.com/yuval-harpaz/misc/main/docs/civil_power.pdf" 
-         target="_blank" 
-         style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-         פתח את הספר במסמך PDF
-      </a>
+    <!-- Simple, direct approach with clear messaging -->
+    <div style="background-color: #f8f9fa; border-radius: 10px; padding: 30px; margin: 20px 0;">
+      <h3 style="color: #333; margin-bottom: 20px;">📚 כח אזרחי - קריאה מקוונת</h3>
+      
+      <!-- Try direct PDF embed -->
+      <object data="https://raw.githubusercontent.com/yuval-harpaz/misc/main/docs/civil_power.pdf" 
+              type="application/pdf" 
+              style="width: 100%; height: 600px; border: 2px solid #ddd; border-radius: 8px; margin: 20px 0;">
+        
+        <!-- Fallback content when PDF can't be displayed -->
+        <div style="padding: 40px; text-align: center;">
+          <p style="color: #666; font-size: 18px; margin-bottom: 25px;">
+            🔍 הדפדפן שלך אינו תומך בתצוגת PDF מובנית
+          </p>
+          
+          <div style="margin: 25px 0;">
+            <a href="https://raw.githubusercontent.com/yuval-harpaz/misc/main/docs/civil_power.pdf" 
+               target="_blank" 
+               download="civil_power.pdf"
+               style="background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; margin: 10px; font-size: 16px;">
+               💾 הורד את הספר
+            </a>
+          </div>
+          
+          <div style="margin: 25px 0;">
+            <a href="https://raw.githubusercontent.com/yuval-harpaz/misc/main/docs/civil_power.pdf" 
+               target="_blank"
+               style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; margin: 10px; font-size: 16px;">
+               🌐 פתח בכרטיסייה חדשה
+            </a>
+          </div>
+          
+          <p style="color: #888; font-size: 14px; margin-top: 20px;">
+            💡 עצה: לחויה טובה יותר, הורד את הקובץ ופתח באפליקציית PDF במכשיר שלך
+          </p>
+        </div>
+      </object>
     </div>
   </div>
-
-  <script>
-    // Show fallback after 5 seconds if PDF doesn't load
-    setTimeout(function() {
-      // Check if iframe content loaded successfully
-      try {
-        var iframe = document.getElementById('pdf-viewer');
-        var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        if (!iframeDoc || iframeDoc.readyState !== 'complete') {
-          throw new Error('PDF not loaded');
-        }
-      } catch (e) {
-        console.log('PDF viewer failed, showing fallback');
-        document.getElementById('fallback-message').style.display = 'block';
-      }
-    }, 5000);
-
-    // Also show fallback on iframe error
-    document.getElementById('pdf-viewer').onerror = function() {
-      document.getElementById('fallback-message').style.display = 'block';
-    };
-  </script>
 </body>
 </html>
