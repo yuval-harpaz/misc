@@ -1,21 +1,93 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Map Viewer</title>
+  <title>כח אזרחי - אזי לב-און ושלומית אהרוני ליר</title>
   <style>
     body, html {
       margin: 0;
       height: 100%;
+      font-family: Arial, sans-serif;
+      direction: rtl;
+    }
+    .header {
+      background-color: #f8f9fa;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 1px solid #ddd;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .links {
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+    .links a {
+      color: #007bff;
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    .links a:hover {
+      text-decoration: underline;
     }
     iframe {
       border: none;
       width: 100%;
-      height: 100%;
+      height: calc(100vh - 120px);
     }
   </style>
 </head>
 <body>
-  <iframe src="https://yuval-harpaz.github.io/alarms/oct_7_9.html"></iframe>
+  <div class="header">
+    <div class="title">כח אזרחי, אזי לב-און ושלומית אהרוני ליר</div>
+    <div class="links">
+      <a href="https://www.e-vrit.co.il/Product/36991" target="_blank">גרסה מקוונת - באתר "עברית"</a>
+      |
+      <a href="https://www.steimatzky.co.il/010140932" target="_blank">גרסה מודפסת - באתר סטימצקי</a>
+    </div>
+  </div>
+  <div id="pdf-container" style="text-align: center; padding: 20px;">
+    <!-- Try Google Docs PDF viewer first -->
+    <iframe id="pdf-viewer" 
+            src="https://docs.google.com/viewer?url=https://raw.githubusercontent.com/yuval-harpaz/misc/main/docs/civil_power.pdf&embedded=true" 
+            style="width: 100%; height: calc(100vh - 200px); border: none;">
+    </iframe>
+    
+    <!-- Fallback message and direct link -->
+    <div id="fallback-message" style="display: none; padding: 20px; background-color: #f8f9fa; border-radius: 5px; margin-top: 20px;">
+      <p style="margin-bottom: 15px;">אין אפשרות להציג את הקובץ ישירות בדפדפן</p>
+      <a href="https://raw.githubusercontent.com/yuval-harpaz/misc/main/docs/civil_power.pdf" 
+         target="_blank" 
+         style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+         פתח את הספר במסמך PDF
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Show fallback after 5 seconds if PDF doesn't load
+    setTimeout(function() {
+      // Check if iframe content loaded successfully
+      try {
+        var iframe = document.getElementById('pdf-viewer');
+        var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        if (!iframeDoc || iframeDoc.readyState !== 'complete') {
+          throw new Error('PDF not loaded');
+        }
+      } catch (e) {
+        console.log('PDF viewer failed, showing fallback');
+        document.getElementById('fallback-message').style.display = 'block';
+      }
+    }, 5000);
+
+    // Also show fallback on iframe error
+    document.getElementById('pdf-viewer').onerror = function() {
+      document.getElementById('fallback-message').style.display = 'block';
+    };
+  </script>
 </body>
 </html>
