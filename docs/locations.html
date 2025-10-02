@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Oct 7 events locations</title>
+    <title>Oct 7 locations</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""/>
@@ -9,12 +9,45 @@
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""></script>
     <link rel="icon" href="https://github.com/yuval-harpaz/alarms/blob/master/docs/logo.png?raw=true" type="image/x-icon"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
     #map{
         height: 100vh;
         width: 100vw;
     }
-   
+    #floating-title {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.85);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 1.4em;
+      font-weight: 500;
+      box-shadow: 0 0 4px rgba(0,0,0,0.2);
+      z-index: 1000;
+      direction: rtl;
+      text-align: center;
+    }
+
+    #floating-title a {
+      display: block;
+      font-size: 0.7em;
+      color: #007bff;
+      text-decoration: none;
+      margin-top: 2px;
+    }
+    #floating-title p {
+      display: block;
+      font-size: 0.6em;
+      color: #000000;
+      text-decoration: none;
+      margin-top: 2px;
+    }
+    #floating-title a:hover {
+      text-decoration: underline;
+    }
     .leaflet-tooltip-left:before {
         right: 0;
         margin-right: -12px;
@@ -47,6 +80,13 @@
     </style>
 </head>
 <body>
+    <div id="floating-title">
+      מפת מיקומים של אירועי שבעה באוק'<br>
+      <p>
+      המפה כוללת מיקומים של אירועי רצח, חטיפה ונפילה בקרב של קורבנות שבעה באוקטובר.<br>
+      נכללו מקרים מסויימים ממלחמת חרבות ברזל. פרטים נוספים באתר 
+      </p><a href="https://oct7database.com/locations_intro.html" target="_blank">oct7database.com</a>
+    </div>
     <div id="map">
         <script type="module">
             const iconSize = 16;

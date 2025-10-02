@@ -2,3 +2,4 @@ token.txt
 .idea
 data/*_*-*.csv
 *~
+*geojson
