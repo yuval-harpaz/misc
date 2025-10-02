@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Oct 7 events locations</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""></script>
+    <link rel="icon" href="https://github.com/yuval-harpaz/alarms/blob/master/docs/logo.png?raw=true" type="image/x-icon"/>
+    <style>
+    #map{
+        height: 100vh;
+        width: 100vw;
+    }
+   
+    .leaflet-tooltip-left:before {
+        right: 0;
+        margin-right: -12px;
+        border-left-color: transparent;
+    }
+    .leaflet-tooltip-right:before {
+        left: 0;
+        margin-left: -12px;
+        border-right-color: transparent;
+    }
+    .red-tooltip {
+        background: transparent;
+        box-shadow: none;
+        border: transparent;
+        color: red;
+        font-weight: bold;
+        font-size: 18px;
+        line-height: 16px;
+    }
+    .blue-tooltip {
+        background: transparent;
+        box-shadow: none;
+        border: transparent;
+        color: blue;
+        font-weight: bold;
+        font-size: 18px;
+        line-height: 16px;
+        text-align: right;
+    }
+    @media (max-width: 600px) {
+      .red-tooltip,
+      .blue-tooltip,
+      .white-tooltip {
+          font-size: 28px;
+      }
+    }
+    </style>
+</head>
+<body>
+    <div id="map">
+        <script type="module">
+            const iconSize = 16;
+            const redIcon = L.icon({
+                iconUrl: 'https://yuval-harpaz.github.io/alarms/red_ring.png',
+                iconSize: [iconSize, iconSize], // Set the size of the icon
+                iconAnchor: [iconSize / 2, iconSize / 2], // Anchor the icon (centered in this example)
+                popupAnchor: [0, 0] // Position of the popup relative to the icon
+            });
+            const blueIcon = L.icon({
+                iconUrl: 'https://yuval-harpaz.github.io/alarms/blue_square.png',
+                iconSize: [iconSize, iconSize], // Set the size of the icon
+                iconAnchor: [iconSize / 2, iconSize / 2], // Anchor the icon (centered in this example)
+                popupAnchor: [0, 0] // Position of the popup relative to the icon
+            });
+            const esri = L.tileLayer(
+            "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/49849/{z}/{y}/{x}",
+            {
+                attribution: "Esri, Maxar, Earthstar Geographics",
+                maxNativeZoom: 18,
+                maxZoom: 21,
+                minZoom: 0,
+                noWrap: false
+            }
+            );
+            const esriLatest = L.tileLayer(
+                "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                {"attribution": "Esri", "detectRetina": false, "maxNativeZoom": 18, "maxZoom": 21, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
+            )
+            const govmap = L.tileLayer('https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png', {
+                maxZoom: 15,
+                attribution: '© המרכז למיפוי ישראל www.govmap.gov.il',
+            });
+            var baseMaps = {
+                "GovMap": govmap,
+                "Esri latest": esriLatest,
+                "Esri 2024-11-18": esri,
+            };
+            const map = L.map('map', {
+                layers: [govmap, esriLatest, esri],
+                center: [31.425145, 34.48899],
+                // center: [31.52235270842099, 34.59410976761593],
+                zoom: 15,
+            });
+            var geojsonData = {
+                "type": "FeatureCollection",
+                "features": [
+                  {
+                   "type": "Feature",
+                   "properties": {"name": "Gracie Red", "event": "killed"},
+                   "geometry": {
+                      "type": "Point",
+                      "coordinates": [34.48899, 31.425145]
+                     }
+                  }, 
+                  {
+                   "type": "Feature",
+                   "properties": {"name": "Gracie Blue", "event": "kidnapped"},
+                   "geometry": {
+                      "type": "Point",
+                      "coordinates": [34.48899, 31.425145]
+                     }
+                   },
+                   {
+                   "type": "Feature",
+                   "properties": {"place_name": "בארי; אשלים", "details": "kidnapped: kid1, kid2<br>killed: kil3, kil4"},
+                   "geometry": {
+                     "type": "Polygon",
+                     "coordinates": [[[34.494458, 31.422754], [34.49331, 31.4236], [34.491937, 31.422369], [34.492189, 31.42198], [34.492516, 31.421096], [34.494458, 31.422754]]]
+                     }
+                  }
+                ]
+              };
+            var Areas = L.layerGroup()
+            for (let i = 0; i < geojsonData['features'].length; i++) {
+                const feat = geojsonData['features'][i];
+                if (feat['geometry']['type'] !== 'Polygon') continue;
+                console.log('Processing polygon feature:', feat);
+                // Convert coordinates from [lng, lat] to [lat, lng] for Leaflet
+                const coords = feat['geometry']['coordinates'][0].map(coord => [coord[1], coord[0]]);
+                console.log('Converted coordinates:', coords);
+                const pol = L.polygon(coords, { fillColor: '#ff69b4',
+                        weight: 2,
+                        opacity: 1,
+                        color: '#ff1493',
+                        dashArray: '3',
+                        fillOpacity: 0.3})
+                console.log('Created polygon:', pol);
+                pol.bindPopup('<div dir="rtl" style="text-align: right;">' + feat['properties'].place_name + '<br>' + feat['properties'].details + '</div>');
+                pol.addTo(Areas);
+                console.log('Added polygon to Areas layer');
+            }
+            var Killed = L.layerGroup()
+            var Kidnapped = L.layerGroup()
+            for (let i = 0; i < geojsonData['features'].length; i++) {
+                const feat = geojsonData['features'][i];
+                if (feat['geometry']['type'] !== 'Point') continue;
+                event = feat['properties'].event
+                if (event === "killed") {
+                    const marker = L.marker(feat['geometry']['coordinates'].reverse(), { icon: redIcon })
+                    marker.bindTooltip(feat['properties'].name, {
+                        permanent: true,
+                        direction: 'right',
+                        className: 'red-tooltip'
+                    });
+                    marker.bindPopup(feat['properties'].place_name + '<br>' + '<a href="' + feat['properties'].link + '" target="_blank">' + feat['properties'].link_text + '</a>');
+                    marker.addTo(Killed)
+                } else if (event === "kidnapped") {
+                    const marker = L.marker(feat['geometry']['coordinates'].reverse(), { icon: blueIcon })
+                    marker.bindTooltip(feat['properties'].name, {
+                        permanent: true,
+                        direction: 'left',
+                        className: 'blue-tooltip'
+                    });
+                    marker.bindPopup(feat['properties'].place_name + '<br>' + '<a href="' + feat['properties'].link + '" target="_blank">' + feat['properties'].link_text + '</a>');
+                    marker.addTo(Kidnapped)
+                }  else {
+                    console.log('Unknown event: ', event)
+                }
+            }
+            var overlayMaps = {
+                "Area": Areas,
+                "Killed": Killed,
+                "Kidnapped": Kidnapped
+            };
+            Areas.addTo(map)
+            Killed.addTo(map)
+            Kidnapped.addTo(map)
+            console.log('okay')
+            var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+            document.getElementById('map').style.cursor = 'crosshair'
+            map.on("contextmenu", function (event) {
+                const coords = event.latlng.toString().slice(7, -1);
+
+                // Try to copy to clipboard
+                navigator.clipboard.writeText(coords).then(() => {
+                    alert("Coordinates copied to clipboard:\n" + coords);
+                }).catch(err => {
+                    console.error("Could not copy text: ", err);
+                    // Fallback to prompt
+                    window.prompt("Copy to clipboard: Ctrl+C, Enter", coords);
+                });
+            });    
+        </script>
+    </div>
+</body>
+<!-- comment -->
+</html>
+
