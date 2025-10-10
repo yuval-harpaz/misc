@@ -303,6 +303,17 @@ var Areas = L.layerGroup()
             const searchInput = document.getElementById('search-input');
             const searchResults = document.getElementById('search-results');
             
+            // Function to normalize text for searching
+            function normalizeText(text) {
+                if (!text) return '';
+                return text
+                    .normalize('NFD') // Decompose combined characters
+                    .replace(/[\u0300-\u036f\u0591-\u05C7]/g, '') // Remove diacritics and Hebrew cantillation/vowels
+                    .replace(/[׳״\u05F3\u05F4]/g, '') // Remove geresh and gershayim
+                    .replace(/[^\u0590-\u05FF\u0600-\u06FF\w\s]/g, '') // Keep Hebrew, Arabic, alphanumeric and spaces
+                    .toLowerCase();
+            }
+            
             searchInput.addEventListener('input', function() {
                 const query = this.value.trim();
                 
@@ -312,10 +323,14 @@ var Areas = L.layerGroup()
                     return;
                 }
                 
+                const normalizedQuery = normalizeText(query);
+                
                 // Filter features by name or place
                 const matches = allFeatures.filter(item => {
-                    const nameMatch = item.name && item.name.includes(query);
-                    const placeMatch = item.place && item.place.includes(query);
+                    const normalizedName = normalizeText(item.name);
+                    const normalizedPlace = normalizeText(item.place);
+                    const nameMatch = normalizedName.includes(normalizedQuery);
+                    const placeMatch = normalizedPlace.includes(normalizedQuery);
                     return nameMatch || placeMatch;
                 });
                 
