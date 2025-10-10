@@ -66,6 +66,54 @@
     #popup-message a:hover {
       text-decoration: underline;
     }
+    
+    #search-box {
+      position: absolute;
+      top: 60px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+      width: 250px;
+    }
+    
+    #search-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      direction: rtl;
+      box-sizing: border-box;
+    }
+    
+    #search-results {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 5px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      display: none;
+    }
+    
+    .search-result-item {
+      padding: 8px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+      direction: rtl;
+      text-align: right;
+    }
+    
+    .search-result-item:hover {
+      background: #f0f0f0;
+    }
+    
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
     .leaflet-tooltip-left:before {
         right: 0;
         margin-right: -12px;
@@ -105,6 +153,11 @@
       המפה כוללת מיקומים של אירועי רצח, חטיפה ונפילה בקרב של קורבנות שבעה באוקטובר.<br>
       פרטים נוספים באתר 
       </p><a href="https://oct7database.com/locations_intro.html" target="_blank">oct7database.com</a>
+    </div>
+    
+    <div id="search-box">
+      <input type="text" id="search-input" placeholder="חיפוש לפי שם או מקום...">
+      <div id="search-results"></div>
     </div>
     <div id="map">
         <script type="module">
@@ -180,6 +233,8 @@
                 ]
               };
             var Areas = L.layerGroup()
+            var allFeatures = []; // Store all features with their layer objects
+            
             for (let i = 0; i < geojsonData['features'].length; i++) {
                 const feat = geojsonData['features'][i];
                 if (feat['geometry']['type'] !== 'Polygon') continue;
@@ -196,6 +251,12 @@
                 console.log('Created polygon:', pol);
                 pol.bindPopup('<div dir="rtl" style="text-align: right;">' + feat['properties'].place_name + '<br>' + feat['properties'].details + '</div>');
                 pol.addTo(Areas);
+                allFeatures.push({
+                    name: feat['properties'].place_name,
+                    type: 'polygon',
+                    layer: pol,
+                    feature: feat
+                });
                 console.log('Added polygon to Areas layer');
             }
             var Killed = L.layerGroup()
@@ -213,6 +274,14 @@
                     });
                     marker.bindPopup(feat['properties'].place_name + '<br>' + '<a href="' + feat['properties'].link + '" target="_blank">' + feat['properties'].link_text + '</a>');
                     marker.addTo(Killed)
+                    allFeatures.push({
+                        name: feat['properties'].name,
+                        place: feat['properties'].place_name,
+                        type: 'point',
+                        event: 'killed',
+                        layer: marker,
+                        feature: feat
+                    });
                 } else if (event === "kidnapped") {
                     const marker = L.marker(feat['geometry']['coordinates'].reverse(), { icon: blueIcon })
                     marker.bindTooltip(feat['properties'].name, {
@@ -222,6 +291,14 @@
                     });
                     marker.bindPopup(feat['properties'].place_name + '<br>' + '<a href="' + feat['properties'].link + '" target="_blank">' + feat['properties'].link_text + '</a>');
                     marker.addTo(Kidnapped)
+                    allFeatures.push({
+                        name: feat['properties'].name,
+                        place: feat['properties'].place_name,
+                        type: 'point',
+                        event: 'kidnapped',
+                        layer: marker,
+                        feature: feat
+                    });
                 }  else {
                     console.log('Unknown event: ', event)
                 }
@@ -248,6 +325,75 @@
                     // Fallback to prompt
                     window.prompt("Copy to clipboard: Ctrl+C, Enter", coords);
                 });
+            });
+            
+            // Search functionality
+            const searchInput = document.getElementById('search-input');
+            const searchResults = document.getElementById('search-results');
+            
+            searchInput.addEventListener('input', function() {
+                const query = this.value.trim();
+                
+                if (query.length < 2) {
+                    searchResults.style.display = 'none';
+                    searchResults.innerHTML = '';
+                    return;
+                }
+                
+                // Filter features by name or place
+                const matches = allFeatures.filter(item => {
+                    const nameMatch = item.name && item.name.includes(query);
+                    const placeMatch = item.place && item.place.includes(query);
+                    return nameMatch || placeMatch;
+                });
+                
+                if (matches.length === 0) {
+                    searchResults.style.display = 'none';
+                    searchResults.innerHTML = '';
+                    return;
+                }
+                
+                // Display results
+                searchResults.innerHTML = '';
+                searchResults.style.display = 'block';
+                
+                matches.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'search-result-item';
+                    
+                    if (item.type === 'polygon') {
+                        div.textContent = item.name;
+                    } else {
+                        const displayName = item.name.replace(/<br>/g, '; ');
+                        div.textContent = `${displayName} - ${item.place}`;
+                    }
+                    
+                    div.addEventListener('click', function() {
+                        // Focus on the selected feature
+                        if (item.type === 'polygon') {
+                            map.fitBounds(item.layer.getBounds());
+                        } else {
+                            map.setView(item.layer.getLatLng(), 17);
+                        }
+                        
+                        // Open popup
+                        item.layer.openPopup();
+                        
+                        // Clear search
+                        searchInput.value = '';
+                        searchResults.style.display = 'none';
+                        searchResults.innerHTML = '';
+                    });
+                    
+                    searchResults.appendChild(div);
+                });
+            });
+            
+            // Close search results when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!document.getElementById('search-box').contains(event.target)) {
+                    searchResults.style.display = 'none';
+                }
             });    
         </script>
     </div>
