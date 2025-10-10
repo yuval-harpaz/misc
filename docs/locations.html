@@ -225,6 +225,7 @@ var Areas = L.layerGroup()
                 pol.addTo(Areas);
                 allFeatures.push({
                     name: feat['properties'].place_name,
+                    details: feat['properties'].details, // Store details for searching
                     type: 'polygon',
                     layer: pol,
                     feature: feat
@@ -325,13 +326,15 @@ var Areas = L.layerGroup()
                 
                 const normalizedQuery = normalizeText(query);
                 
-                // Filter features by name or place
+                // Filter features by name, place, or details
                 const matches = allFeatures.filter(item => {
                     const normalizedName = normalizeText(item.name);
                     const normalizedPlace = normalizeText(item.place);
+                    const normalizedDetails = normalizeText(item.details);
                     const nameMatch = normalizedName.includes(normalizedQuery);
                     const placeMatch = normalizedPlace.includes(normalizedQuery);
-                    return nameMatch || placeMatch;
+                    const detailsMatch = normalizedDetails.includes(normalizedQuery);
+                    return nameMatch || placeMatch || detailsMatch;
                 });
                 
                 if (matches.length === 0) {
@@ -349,7 +352,34 @@ var Areas = L.layerGroup()
                     div.className = 'search-result-item';
                     
                     if (item.type === 'polygon') {
-                        div.textContent = item.name;
+                        // For polygons, try to find the specific matched name
+                        let matchedName = '';
+                        if (item.details) {
+                            // Split by <br> and then by ", " to get individual names
+                            const detailsParts = item.details.split('<br>');
+                            for (let part of detailsParts) {
+                                // Extract names after "נהרגו:" or "נחטפו:"
+                                const colonIndex = part.indexOf(':');
+                                if (colonIndex !== -1) {
+                                    const namesList = part.substring(colonIndex + 1).trim();
+                                    const names = namesList.split(', ');
+                                    for (let name of names) {
+                                        const normalizedName = normalizeText(name.trim());
+                                        if (normalizedName.includes(normalizedQuery)) {
+                                            matchedName = name.trim();
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (matchedName) break;
+                            }
+                        }
+                        
+                        if (matchedName) {
+                            div.textContent = `${matchedName} - ${item.name}`;
+                        } else {
+                            div.textContent = item.name;
+                        }
                     } else {
                         const displayName = item.name.replace(/<br>/g, '; ');
                         div.textContent = `${displayName} - ${item.place}`;
