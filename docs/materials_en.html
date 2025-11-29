@@ -23,9 +23,21 @@
             <h1>Materials & Information</h1>
         </div>
         <div class="container">
-            <h2>Our Materials</h2>
+                        <div class="toc" style="margin-bottom:2em;">
+                            <h3>Table of Contents</h3>
+                            <ul>
+                                <li><a href="#map-victims">Death locations of the murdered and fallen</a></li>
+                                <li><a href="#map-locations">Exact locations of October 7 events</a></li>
+                                <li><a href="#map-family">Family relationships among victims</a></li>
+                                <li><a href="#map-rockets">Victims of rocket and missile fire</a></li>
+                                <li><a href="#map-alarms">Alarm data</a></li>
+                                <li><a href="#table-idf">IDF fallen table</a></li>
+                                <li><a href="#table-kidnapped">Kidnapped table</a></li>
+                                <li><a href="#map-dogs">Map of dogs killed or missing</a></li>
+                            </ul>
+                        </div>
             <div class="iframe-container">
-                <div class="iframe-title">
+                <div class="iframe-title" id="map-victims">
                     <h3>Death locations of the murdered and fallen during the Hamas attack on Israel between 7-9 October</h3>
                     A map showing the total number of murdered and fallen by location, between October 7–9. The map is accompanied by a table of victims from the first days, which is a partial table from the database. It does not include those killed or murdered later in the Iron Swords War, nor abductees who survived.
                     <a href="oct_7_9_en.html" target="_blank">🔗 View Map</a>
@@ -33,7 +45,7 @@
                 <iframe src="oct_7_9_en.html" width="500" height="500"></iframe>
             </div>
             <div class="iframe-container">
-                <div class="iframe-title">
+                <div class="iframe-title" id="map-locations">
                     <h3>Exact locations of October 7 events</h3>
                     A map showing abduction locations (blue), murder and combat deaths (red).
                     <a href="locations_intro.html" target="_blank">🔗 Explanation Page</a>
@@ -41,7 +53,7 @@
                 <iframe src="locations.html" width="500" height="500"></iframe>
             </div>
             <div class="iframe-container">
-                <div class="iframe-title">
+                <div class="iframe-title" id="map-family">
                     <h3>Family relationships among victims</h3>
                     A table listing, for each abductee, murdered or fallen, their relatives who were also abducted or killed, if any. Each row represents one victim, and the columns indicate affected spouse, parent, sibling, child, etc. The table was prepared for the Civil Commission's kinocide report. See <a href="https://x.com/Keren_ym/status/1871853760835936353" target="_blank">Keren's post</a>.
                     Open the table:
@@ -51,7 +63,7 @@
                 <iframe src="https://docs.google.com/spreadsheets/d/1oYSdCWA8cVlfFfCQZTSuM5a92JhnOlP578xeNL9L0a0/edit?usp=sharing" width="800" height="500"></iframe>
             </div>
             <div class="iframe-container">
-                <div class="iframe-title">
+                <div class="iframe-title" id="map-rockets">
                     <h3>Victims of rocket and missile fire</h3>
                     A map showing those killed by rocket fire, including indirect deaths (e.g., heart attacks or accidents during alarms).
                     <a href="rockets_victims.html" target="_blank">🔗 View Map</a>
@@ -59,7 +71,7 @@
                 <iframe src="rockets_victims.html" width="500" height="500"></iframe>
             </div>
             <div class="iframe-container">
-                <div class="iframe-title">
+                <div class="iframe-title" id="map-alarms">
                     <h3>Alarm data</h3>
                     <a href="https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/alarms.csv" target="_blank">csv</a> table summarizing alarms since June 2019. Linked to a map showing total alerts by location per year. You can select a year in the legend and see the number of alarms by hovering over settlements.
                     <a href="alarms_by_year.html" target="_blank">🔗 View Map</a>
@@ -67,7 +79,7 @@
                 <iframe src="alarms_by_year.html" width="500" height="500"></iframe>
             </div>
             <div class="iframe-container">
-                <div class="iframe-title">
+                <div class="iframe-title" id="table-idf">
                     <h3>IDF fallen table</h3>
                     A table listing the war casualties as published on the <a href="https://www.idf.il/%D7%A0%D7%95%D7%A4%D7%9C%D7%99%D7%9D/%D7%97%D7%9C%D7%9C%D7%99-%D7%94%D7%9E%D7%9C%D7%97%D7%9E%D7%94/" target="_blank">IDF website</a>. Includes members of standby squads and soldiers murdered at home or at the Nova party.
                     Open the table:
@@ -77,7 +89,7 @@
                 <iframe src="https://docs.google.com/spreadsheets/d/1eSNTW7z4hTnYvrUqqsu6Zn8pWfojsmBQkP382JTHxsY/edit?usp=sharing" width="800" height="500"></iframe>
             </div>
             <div class="iframe-container">
-                <div class="iframe-title">
+                <div class="iframe-title" id="table-kidnapped">
                     <h3>Kidnapped table</h3>
                     A table listing the names of the abducted. For those released or rescued, the release date is shown, which does not appear in the general war victims table.
                     Open the table:
@@ -86,17 +98,25 @@
                 </div>
                 <iframe src="https://docs.google.com/spreadsheets/d/1wo93qBTViE2qzB649IHDWSltwN6O256l2pqzyP955GA/edit?usp=sharing" width="800" height="500"></iframe>
             </div>
-            <script>
+                <div class="iframe-container">
+                <div class="iframe-title" id="map-dogs">
+                    <h3>Map of dogs killed or missing</h3>
+                    A map showing the dogs that were killed or went missing during the October 7 massacre.
+                    <a href="dogs.html" target="_blank">🔗 View Map</a>
+                </div>
+                <iframe src="dogs.html" width="500" height="500"></iframe>
+                </div>
+                <script>
                 document.addEventListener("DOMContentLoaded", function () {
-                        const toggle = document.querySelector('.menu-toggle');
-                        const links = document.querySelector('.menu-links');
-                        if (toggle && links) {
-                                toggle.addEventListener('click', function () {
-                                        links.classList.toggle('open');
-                                });
-                        }
+                    const toggle = document.querySelector('.menu-toggle');
+                    const links = document.querySelector('.menu-links');
+                    if (toggle && links) {
+                        toggle.addEventListener('click', function () {
+                            links.classList.toggle('open');
+                        });
+                    }
                 });
-            </script>
+                </script>
         </div>
 </body>
 </html>
