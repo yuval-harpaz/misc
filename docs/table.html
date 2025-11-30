@@ -56,9 +56,9 @@
 
             // Initialize DataTable
             var table = $('#oct7table').DataTable({
-                dom: 'lrtip', // Hide default search box
+                dom: 'lrt', // Hide default search box and length menu
                 order: [],
-                pageLength: 25
+                paging: false // Show all rows, no pagination
             });
 
             // Build filters for categorical columns and date range
@@ -70,8 +70,13 @@
                 // Detect date columns (simple heuristic)
                 if (col.title.toLowerCase().includes('date')) {
                     filterHtml += `<label>${col.title} from <input type="date" id="minDate${idx}" value="${oct7Str}"> to <input type="date" id="maxDate${idx}" value="${todayStr}"></label>`;
-                } else if (data.length > 0 && data[0][col.title] && data[0][col.title].length < 30) {
-                    // For short text columns, create dropdown filter
+                } else if (
+                    data.length > 0 &&
+                    data[0][col.title] &&
+                    data[0][col.title].length < 30 &&
+                    !col.title.toLowerCase().includes('location class')
+                ) {
+                    // For short text columns, create dropdown filter (except location class)
                     var uniqueVals = [...new Set(data.map(row => row[col.title]).filter(v => v))].sort();
                     if (uniqueVals.length > 1 && uniqueVals.length < 50) {
                         filterHtml += `<label>${col.title}: <select id="filter${idx}"><option value="">All</option>`;
