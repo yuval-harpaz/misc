@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link href="logo.png" rel="icon"/>
     <meta charset="UTF-8">
     <title>Oct7 Database Viewer</title>
     <!-- DataTables CSS -->
@@ -13,12 +14,26 @@
     <!-- DataTables JS -->
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #ede0d4;
+        }
         #filters { margin-bottom: 20px; }
         label { margin-right: 10px; }
+        .logo-topright {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            border-radius: 10px;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
+    <img src="logo.png" alt="oct7database logo" class="logo-topright">
     <h2>Oct7 Database Viewer</h2>
     <div id="filters"></div>
     <table id="oct7table" class="display" style="width:100%">
@@ -65,18 +80,15 @@
             var filterHtml = '';
             var todayStr = new Date().toISOString().slice(0,10);
             var oct7Str = '2023-10-07';
-            filterHtml += `<label>Free search: <input type="text" id="globalSearch" placeholder="Search all columns..."></label> `;
+            filterHtml += `<div id="search-row"><label>Free search: <input type="text" id="globalSearch" placeholder="Search all columns..."></label> `;
             columns.forEach(function(col, idx) {
-                // Detect date columns (simple heuristic)
-                if (col.title.toLowerCase().includes('date')) {
-                    filterHtml += `<label>${col.title} from <input type="date" id="minDate${idx}" value="${oct7Str}"> to <input type="date" id="maxDate${idx}" value="${todayStr}"></label>`;
-                } else if (
+                if (
                     data.length > 0 &&
                     data[0][col.title] &&
                     data[0][col.title].length < 30 &&
-                    !col.title.toLowerCase().includes('location class')
+                    !col.title.toLowerCase().includes('location class') &&
+                    !col.title.toLowerCase().includes('date')
                 ) {
-                    // For short text columns, create dropdown filter (except location class)
                     var uniqueVals = [...new Set(data.map(row => row[col.title]).filter(v => v))].sort();
                     if (uniqueVals.length > 1 && uniqueVals.length < 50) {
                         filterHtml += `<label>${col.title}: <select id="filter${idx}"><option value="">All</option>`;
@@ -87,9 +99,44 @@
                     }
                 }
             });
+            filterHtml += `</div><div id="date-row" style="margin-top:10px;">`;
+            columns.forEach(function(col, idx) {
+                if (col.title.toLowerCase().includes('date')) {
+                    filterHtml += `<label>${col.title} from <input type="date" id="minDate${idx}" value="${oct7Str}"> to <input type="date" id="maxDate${idx}" value="${todayStr}"></label> `;
+                }
+            });
+            filterHtml += `</div><div id="download-row" style="margin-top:10px;">
+                <button id="downloadFullXLSX">Download full table (XLSX)</button>
+                <button id="downloadFilteredXLSX">Download filtered data (XLSX)</button>
+            </div>`;
             $("#filters").html(filterHtml);
 
             // Filtering logic
+                        // XLSX download logic
+                        function exportToXLSX(rows, cols, filename) {
+                            var wb = XLSX.utils.book_new();
+                            var ws_data = [cols.map(c => c.title)];
+                            rows.forEach(function(row) {
+                                ws_data.push(cols.map(c => row[c.title]));
+                            });
+                            var ws = XLSX.utils.aoa_to_sheet(ws_data);
+                            XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+                            XLSX.writeFile(wb, filename);
+                        }
+                        // Load SheetJS
+                        if (typeof XLSX === 'undefined') {
+                            var xlsxScript = document.createElement('script');
+                            xlsxScript.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+                            document.head.appendChild(xlsxScript);
+                        }
+                        $('#downloadFullXLSX').on('click', function() {
+                            exportToXLSX(data, columns, 'oct7database_full.xlsx');
+                        });
+                        $('#downloadFilteredXLSX').on('click', function() {
+                            var filteredIndexes = table.rows({ filter: 'applied' }).indexes().toArray();
+                            var filteredRows = filteredIndexes.map(function(idx) { return data[idx]; });
+                            exportToXLSX(filteredRows, columns, 'oct7database_filtered.xlsx');
+                        });
             // Free search bar
             $('#globalSearch').on('input', function() {
                 table.search(this.value).draw();
