@@ -43,7 +43,30 @@
             position: sticky;
             top: 0;
             background-color: #ede0d4;
-            z-index: 100;
+            z-index: 10;
+        }
+        #oct7table th:nth-child(1),
+        #oct7table th:nth-child(2),
+        #oct7table th:nth-child(3) {
+            z-index: 11;
+        }
+        #oct7table td:nth-child(1) {
+            position: sticky;
+            left: 0;
+            background-color: #ede0d4;
+            z-index: 1;
+        }
+        #oct7table td:nth-child(2) {
+            position: sticky;
+            left: 0;
+            background-color: #ede0d4;
+            z-index: 1;
+        }
+        #oct7table td:nth-child(3) {
+            position: sticky;
+            left: 0;
+            background-color: #ede0d4;
+            z-index: 1;
         }
         .resizer {
             position: absolute;
@@ -122,8 +145,19 @@
                 autoWidth: false
             });
 
+            // Function to update sticky column positions
+            function updateStickyColumns() {
+                var col1Width = $('#oct7table th:nth-child(1)').outerWidth();
+                var col2Width = $('#oct7table th:nth-child(2)').outerWidth();
+                
+                // For LTR: second column is at col1Width from left, third is at col1Width + col2Width
+                $('#oct7table th:nth-child(2), #oct7table td:nth-child(2)').css('left', col1Width + 'px');
+                $('#oct7table th:nth-child(3), #oct7table td:nth-child(3)').css('left', (col1Width + col2Width) + 'px');
+            }
+
             // Add resize handles to columns
             setTimeout(function() {
+                updateStickyColumns();
                 $('#oct7table thead th').each(function() {
                     var $th = $(this);
                     var $resizer = $('<div class="resizer"></div>');
@@ -147,6 +181,7 @@
                         
                         $(document).on('mouseup.resize', function() {
                             $(document).off('mousemove.resize mouseup.resize');
+                            updateStickyColumns();
                         });
                     });
                 });
