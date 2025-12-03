@@ -115,6 +115,10 @@
                     if (col.data === 'הנצחה' && cellData && cellData.match(/https?:\/\/[^\s]+/)) {
                         cellData = cellData.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
                     }
+                    // Make links for הספרייה הלאומית column
+                    if (col.data === 'הספריה הלאומית' && cellData) {
+                        cellData = '<a href="https://www.nli.org.il/he/authorities/' + cellData + '" target="_blank">' + cellData + '</a>';
+                    }
                     tr += "<td>" + cellData + "</td>";
                 });
                 tr += "</tr>";
