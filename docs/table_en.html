@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en">
 <head>
     <link href="logo.png" rel="icon"/>
     <meta charset="UTF-8">
@@ -23,17 +23,14 @@
         }
         #filters { margin-bottom: 20px; }
         label { margin-right: 10px; }
-        .logo-topleft {
+        .logo-topright {
             position: absolute;
             top: 20px;
-            left: 20px;
+            right: 20px;
             width: 80px;
             height: 80px;
             border-radius: 10px;
             z-index: 10;
-        }
-        #oct7table th {
-            text-align: right;
         }
         #oct7table td {
             max-width: 15ch;
@@ -47,7 +44,7 @@
         .resizer {
             position: absolute;
             top: 0;
-            left: 0;
+            right: 0;
             width: 10px;
             cursor: col-resize;
             user-select: none;
@@ -61,11 +58,11 @@
     </style>
 </head>
 <body>
-        <img src="logo.png" alt="oct7database logo" class="logo-topleft">
-        <h2>מאגר מידע 7 באוקטובר</h2>
+        <img src="logo.png" alt="oct7database logo" class="logo-topright">
+        <h2>October 7 Database</h2>
         <span>
             <a href="https://oct7database.com" target="_blank">oct7database.com</a>
-            <button style="margin-right:10px;vertical-align:middle;" onclick="window.open('table_en.html', '_blank')">English</button>
+            <button style="margin-left:10px;vertical-align:middle;" onclick="window.open('table.html', '_blank')">Hebrew</button>
         </span><br><br>
     <div id="filters"></div>
     <table id="oct7table" class="display" style="width:100%">
@@ -79,23 +76,11 @@
         header: true,
         complete: function(results) {
             var data = results.data;
-            var hideCols = ['first name', 'last name', 'middle name', 'nickname', 'Event location', 'Event location class', 'Death location', 'Death location class'];
-            var translations = {
-                'front': 'חזית',
-                'Status': 'סטטוס',
-                'Role': 'תפקיד',
-                'Country': 'ארץ',
-                'Gender': 'מין',
-                'Age': 'גיל',
-                'Party': 'מסיבה',
-                'Residence': 'מקום מגורים',
-                'Event date': 'תאריך אירוע',
-                'Death date': 'תאריך פטירה'
-            };
+            var hideCols = ['שם פרטי', 'שם משפחה', 'שם נוסף', 'כינוי'];
             var columns = Object.keys(data[0])
                 .filter(function(col) { return hideCols.indexOf(col) === -1; })
                 .map(function(col) {
-                    return { title: translations[col] || col, data: col };
+                    return { title: col, data: col };
                 });
 
             // Build table header
@@ -144,8 +129,7 @@
                         
                         $(document).on('mousemove.resize', function(e) {
                             e.preventDefault();
-                            // For RTL, reverse the direction: moving right decreases width, moving left increases width
-                            var width = startWidth - (e.pageX - startX);
+                            var width = startWidth + (e.pageX - startX);
                             if (width > 50) {
                                 $th.css('width', width + 'px');
                                 $th.css('min-width', width + 'px');
@@ -164,18 +148,18 @@
             var filterHtml = '';
             var todayStr = new Date().toISOString().slice(0,10);
             var oct7Str = '2023-10-07';
-            filterHtml += `<div id="search-row"><label>חיפוש חופשי: <input type="text" id="globalSearch" placeholder="חפש בכל העמודות..."></label> `;
+            filterHtml += `<div id="search-row"><label>Free search: <input type="text" id="globalSearch" placeholder="Search all columns..."></label> `;
             columns.forEach(function(col, idx) {
                 if (
                     data.length > 0 &&
-                    data[0][col.data] &&
-                    data[0][col.data].length < 30 &&
-                    !col.data.toLowerCase().includes('location class') &&
-                    !col.data.toLowerCase().includes('date')
+                    data[0][col.title] &&
+                    data[0][col.title].length < 30 &&
+                    !col.title.toLowerCase().includes('location class') &&
+                    !col.title.toLowerCase().includes('date')
                 ) {
-                    var uniqueVals = [...new Set(data.map(row => row[col.data]).filter(v => v))].sort();
+                    var uniqueVals = [...new Set(data.map(row => row[col.title]).filter(v => v))].sort();
                     if (uniqueVals.length > 1 && uniqueVals.length < 50) {
-                        filterHtml += `<label>${col.title}: <select id="filter${idx}"><option value="">הכל</option>`;
+                        filterHtml += `<label>${col.title}: <select id="filter${idx}"><option value="">All</option>`;
                         uniqueVals.forEach(function(val) {
                             filterHtml += `<option value="${val}">${val}</option>`;
                         });
@@ -186,12 +170,12 @@
             filterHtml += `</div><div id="date-row" style="margin-top:10px;">`;
             columns.forEach(function(col, idx) {
                 if (col.title.toLowerCase().includes('date')) {
-                    filterHtml += `<label>${col.title} מ <input type="date" id="minDate${idx}" value="${oct7Str}"> עד <input type="date" id="maxDate${idx}" value="${todayStr}"></label> `;
+                    filterHtml += `<label>${col.title} from <input type="date" id="minDate${idx}" value="${oct7Str}"> to <input type="date" id="maxDate${idx}" value="${todayStr}"></label> `;
                 }
             });
             filterHtml += `</div><div id="download-row" style="margin-top:10px;">
-                <button id="downloadFullXLSX">הורד את כל הטבלה (XLSX)</button>
-                <button id="downloadFilteredXLSX">הורד נתונים מסוננים (XLSX)</button>
+                <button id="downloadFullXLSX">Download full table (XLSX)</button>
+                <button id="downloadFilteredXLSX">Download filtered data (XLSX)</button>
             </div>`;
             $("#filters").html(filterHtml);
 
