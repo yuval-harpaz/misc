@@ -210,17 +210,14 @@ var Areas = L.layerGroup()
             for (let i = 0; i < geojsonData['features'].length; i++) {
                 const feat = geojsonData['features'][i];
                 if (feat['geometry']['type'] !== 'Polygon') continue;
-                console.log('Processing polygon feature:', feat);
                 // Convert coordinates from [lng, lat] to [lat, lng] for Leaflet
                 const coords = feat['geometry']['coordinates'][0].map(coord => [coord[1], coord[0]]);
-                console.log('Converted coordinates:', coords);
                 const pol = L.polygon(coords, { fillColor: '#ff69b4',
                         weight: 2,
                         opacity: 1,
                         color: '#ff1493',
                         dashArray: '3',
                         fillOpacity: 0.3})
-                console.log('Created polygon:', pol);
                 pol.bindPopup('<div dir="rtl" style="text-align: right;">' + feat['properties'].place_name + '<br>' + feat['properties'].details + '</div>');
                 pol.addTo(Areas);
                 allFeatures.push({
@@ -230,7 +227,6 @@ var Areas = L.layerGroup()
                     layer: pol,
                     feature: feat
                 });
-                console.log('Added polygon to Areas layer');
             }
             var Killed = L.layerGroup()
             var Kidnapped = L.layerGroup()
@@ -238,8 +234,10 @@ var Areas = L.layerGroup()
                 const feat = geojsonData['features'][i];
                 if (feat['geometry']['type'] !== 'Point') continue;
                 event = feat['properties'].event
+                // Create a copy of coordinates to avoid mutation issues
+                const coords = [feat['geometry']['coordinates'][1], feat['geometry']['coordinates'][0]];
                 if (event === "killed") {
-                    const marker = L.marker(feat['geometry']['coordinates'].reverse(), { icon: redIcon })
+                    const marker = L.marker(coords, { icon: redIcon })
                     marker.bindTooltip(feat['properties'].name, {
                         permanent: true,
                         direction: 'right',
@@ -253,10 +251,11 @@ var Areas = L.layerGroup()
                         type: 'point',
                         event: 'killed',
                         layer: marker,
-                        feature: feat
+                        feature: feat,
+                        pid: feat['properties']['pid']
                     });
                 } else if (event === "kidnapped") {
-                    const marker = L.marker(feat['geometry']['coordinates'].reverse(), { icon: blueIcon })
+                    const marker = L.marker(coords, { icon: blueIcon })
                     marker.bindTooltip(feat['properties'].name, {
                         permanent: true,
                         direction: 'left',
@@ -270,10 +269,9 @@ var Areas = L.layerGroup()
                         type: 'point',
                         event: 'kidnapped',
                         layer: marker,
-                        feature: feat
+                        feature: feat,
+                        pid: feat['properties']['pid']
                     });
-                }  else {
-                    console.log('Unknown event: ', event)
                 }
             }
             var overlayMaps = {
@@ -284,7 +282,6 @@ var Areas = L.layerGroup()
             Areas.addTo(map)
             Killed.addTo(map)
             Kidnapped.addTo(map)
-            console.log('okay')
             var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
             document.getElementById('map').style.cursor = 'crosshair'
             map.on("contextmenu", function (event) {
@@ -411,7 +408,44 @@ var Areas = L.layerGroup()
                 if (!document.getElementById('search-box').contains(event.target)) {
                     searchResults.style.display = 'none';
                 }
-            });    
+            });
+            
+            // PID URL parameter functionality
+            function focusOnPid(pidToFind) {
+                if (!pidToFind) return;
+                
+                // Search through all features
+                for (let item of allFeatures) {
+                    if (item.type !== 'point' || !item.pid) continue;
+                    
+                    // Check if pid matches (handle comma-separated pids)
+                    const pids = item.pid.toString().split(',').map(p => p.trim());
+                    if (pids.includes(pidToFind.toString())) {
+                        // Focus on the point
+                        map.setView(item.layer.getLatLng(), 17);
+                        
+                        // Open popup
+                        item.layer.openPopup();
+                        
+                        return true; // Found and focused
+                    }
+                }
+                
+                return false; // Not found
+            }
+            
+            // Check URL for pid parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const pidParam = urlParams.get('pid');
+            if (pidParam) {
+                // Hide welcome popup when pid is in URL
+                document.getElementById('popup-message').style.display = 'none';
+                
+                // Small delay to ensure map is fully loaded
+                setTimeout(() => {
+                    focusOnPid(pidParam);
+                }, 500);
+            }
         </script>
     </div>
 </body>
