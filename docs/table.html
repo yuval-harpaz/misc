@@ -90,12 +90,16 @@
         <span>
             <a href="https://oct7database.com" target="_blank">oct7database.com</a>
             <button style="margin-right:10px;vertical-align:middle;" onclick="window.open('table_en.html', '_blank')">English</button>
+            <button id="resetButton" style="margin-right:10px;vertical-align:middle;">איפוס</button>
         </span><br><br>
     <div id="filters"></div>
     <table id="oct7table" class="display" style="width:100%">
         <thead></thead>
         <tbody></tbody>
     </table>
+    <div id="map-container" style="display:none; margin-top:20px;">
+        <iframe id="map-iframe" width="100%" height="600" frameborder="0" style="border:0"></iframe>
+    </div>
     <script>
     // Load CSV and initialize DataTable
     Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/oct7database.csv", {
@@ -121,6 +125,9 @@
                 .map(function(col) {
                     return { title: translations[col] || col, data: col };
                 });
+            
+            // Find the index of the pid column
+            var pidColumnIndex = columns.findIndex(function(col) { return col.data === 'pid'; });
 
             // Build table header
             var thead = $("#oct7table thead");
@@ -261,9 +268,83 @@
                             var filteredRows = filteredIndexes.map(function(idx) { return data[idx]; });
                             exportToXLSX(filteredRows, columns, 'oct7database_filtered.xlsx');
                         });
+            
+            // Variable to store selected pid for filtering
+            var selectedPid = null;
+            
+            // Custom filter function for exact pid match
+            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                if (selectedPid === null) {
+                    return true; // No pid filter active
+                }
+                var rowPid = data[pidColumnIndex]; // Use the pid column index
+                return rowPid === selectedPid;
+            });
+            
+            // Row click handler - log pid and filter to show only this row
+            $('#oct7table tbody').on('click', 'tr', function() {
+                var rowIndex = table.row(this).index();
+                if (rowIndex !== undefined && data[rowIndex]) {
+                    var pid = data[rowIndex].pid;
+                    console.log('Selected PID:', pid);
+                    
+                    // Set the selected pid and redraw to filter
+                    selectedPid = pid;
+                    table.draw();
+                }
+            });
+
+            // Check for single row after filtering
+            table.on('draw', function() {
+                var info = table.page.info();
+                var visibleRows = table.rows({ filter: 'applied' }).data().length;
+                if (visibleRows === 1) {
+                    var rowIndex = table.rows({ filter: 'applied' }).indexes()[0];
+                    if (rowIndex !== undefined && data[rowIndex]) {
+                        var pid = data[rowIndex].pid;
+                        console.log('Single row PID:', pid);
+                        
+                        // Show map with this pid
+                        $('#map-iframe').attr('src', 'locations.html?pid=' + pid);
+                        $('#map-container').show();
+                    }
+                } else {
+                    // Hide map when multiple rows visible
+                    $('#map-container').hide();
+                }
+            });
+
             // Free search bar
             $('#globalSearch').on('input', function() {
                 table.search(this.value).draw();
+            });
+
+            // Reset button - clear all filters
+            $('#resetButton').on('click', function() {
+                // Clear selected pid filter
+                selectedPid = null;
+                
+                // Clear global search
+                $('#globalSearch').val('');
+                table.search('').draw();
+                
+                // Clear all dropdown filters
+                columns.forEach(function(col, idx) {
+                    $(`#filter${idx}`).val('').trigger('change');
+                });
+                
+                // Reset date filters to defaults
+                var todayStr = new Date().toISOString().slice(0,10);
+                var oct7Str = '2023-10-07';
+                columns.forEach(function(col, idx) {
+                    if (col.title.toLowerCase().includes('date')) {
+                        $(`#minDate${idx}`).val(oct7Str);
+                        $(`#maxDate${idx}`).val(todayStr);
+                    }
+                });
+                
+                // Redraw table
+                table.draw();
             });
 
             columns.forEach(function(col, idx) {

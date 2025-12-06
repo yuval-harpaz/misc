@@ -103,7 +103,7 @@
         header: true,
         complete: function(results) {
             var data = results.data;
-            var hideCols = ['שם פרטי', 'שם משפחה', 'שם נוסף', 'כינוי'];
+            var hideCols = ['שם פרטי', 'שם משפחה', 'שם נוסף', 'כינוי', 'מקום האירוע', 'מקום המוות', 'Event location class', 'Death location class'];
             var columns = Object.keys(data[0])
                 .filter(function(col) { return hideCols.indexOf(col) === -1; })
                 .map(function(col) {
