@@ -256,7 +256,8 @@
                     details: feat['properties'].details, // Store details for searching
                     type: 'polygon',
                     layer: pol,
-                    feature: feat
+                    feature: feat,
+                    pid: feat['properties']['pid']
                 });
                 console.log('Added polygon to Areas layer');
             }
@@ -451,13 +452,20 @@
                 
                 // Search through all features
                 for (let item of allFeatures) {
-                    if (item.type !== 'point' || !item.pid) continue;
+                    if (!item.pid) continue;
                     
                     // Check if pid matches (handle comma-separated pids)
                     const pids = item.pid.toString().split(',').map(p => p.trim());
                     if (pids.includes(pidToFind.toString())) {
-                        // Focus on the point
-                        map.setView(item.layer.getLatLng(), 17);
+                        // Focus on the feature
+                        if (item.type === 'polygon') {
+                            // Calculate center of polygon
+                            const bounds = item.layer.getBounds();
+                            const center = bounds.getCenter();
+                            map.setView(center, 15);
+                        } else {
+                            map.setView(item.layer.getLatLng(), 17);
+                        }
                         
                         // Open popup
                         item.layer.openPopup();
