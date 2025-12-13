@@ -222,17 +222,25 @@
                 ) {
                     var uniqueVals = [...new Set(data.map(row => row[col.data]).filter(v => v))].sort();
                     if (uniqueVals.length > 1 && uniqueVals.length < 50) {
-                        filterHtml += `<label>${col.title}: <select id="filter${idx}"><option value="">הכל</option>`;
+                        filterHtml += `<div style="display:inline-block; margin-left:15px; vertical-align:top; position:relative;">`;
+                        filterHtml += `<button class="filter-button" data-filter="filter${idx}" style="padding:5px 10px; cursor:pointer;">${col.title} ▼</button>`;
+                        filterHtml += `<div id="filter${idx}" class="filter-dropdown" style="display:none; position:absolute; z-index:1000; background:#fff; border:1px solid #ccc; padding:5px; min-width:150px; max-height:200px; overflow-y:auto; box-shadow:0 2px 5px rgba(0,0,0,0.2);">`;
+                        filterHtml += `<div style="margin-bottom:5px; border-bottom:1px solid #ccc; padding-bottom:5px;">`;
+                        filterHtml += `<button class="select-all-btn" data-filter="filter${idx}" style="margin-left:5px; padding:2px 8px; cursor:pointer;">הכל</button>`;
+                        filterHtml += `<button class="clear-all-btn" data-filter="filter${idx}" style="padding:2px 8px; cursor:pointer;">נקה</button>`;
+                        filterHtml += `</div>`;
                         uniqueVals.forEach(function(val) {
-                            filterHtml += `<option value="${val}">${val}</option>`;
+                            // Escape HTML attribute value
+                            var escapedVal = val.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="filter-checkbox" data-column="${idx}" value="${escapedVal}" data-original-value="${escapedVal}" checked> ${val}</label>`;
                         });
-                        filterHtml += `</select></label>`;
+                        filterHtml += `</div></div>`;
                     }
                 }
             });
             filterHtml += `</div><div id="date-row" style="margin-top:10px;">`;
             columns.forEach(function(col, idx) {
-                if (col.title.toLowerCase().includes('date')) {
+                if (col.data.toLowerCase().includes('date')) {
                     filterHtml += `<label>${col.title} מ <input type="date" id="minDate${idx}" value="${oct7Str}"> עד <input type="date" id="maxDate${idx}" value="${todayStr}"></label> `;
                 }
             });
@@ -298,7 +306,8 @@
             table.on('draw', function() {
                 var info = table.page.info();
                 var visibleRows = table.rows({ filter: 'applied' }).data().length;
-                if (visibleRows === 1) {
+                // Only show map if there's exactly 1 row AND selectedPid is set (intentional selection)
+                if (visibleRows === 1 && selectedPid !== null) {
                     var rowIndex = table.rows({ filter: 'applied' }).indexes()[0];
                     if (rowIndex !== undefined && data[rowIndex]) {
                         var pid = data[rowIndex].pid;
@@ -309,7 +318,7 @@
                         $('#map-container').show();
                     }
                 } else {
-                    // Hide map when multiple rows visible
+                    // Hide map when multiple rows visible or no intentional selection
                     $('#map-container').hide();
                 }
             });
@@ -326,34 +335,115 @@
                 
                 // Clear global search
                 $('#globalSearch').val('');
-                table.search('').draw();
+                table.search('').columns().search('').draw();
                 
-                // Clear all dropdown filters
-                columns.forEach(function(col, idx) {
-                    $(`#filter${idx}`).val('').trigger('change');
-                });
+                // Check all checkboxes (show all values)
+                $('.filter-checkbox').prop('checked', true);
                 
                 // Reset date filters to defaults
                 var todayStr = new Date().toISOString().slice(0,10);
                 var oct7Str = '2023-10-07';
                 columns.forEach(function(col, idx) {
-                    if (col.title.toLowerCase().includes('date')) {
+                    if (col.data.toLowerCase().includes('date')) {
                         $(`#minDate${idx}`).val(oct7Str);
                         $(`#maxDate${idx}`).val(todayStr);
                     }
                 });
                 
+                // Hide the map
+                $('#map-container').hide();
+                
                 // Redraw table
                 table.draw();
             });
 
+            // Toggle filter dropdown visibility
+            $('.filter-button').on('click', function(e) {
+                e.stopPropagation();
+                var filterId = $(this).data('filter');
+                var $dropdown = $('#' + filterId);
+                
+                // Close all other dropdowns
+                $('.filter-dropdown').not($dropdown).hide();
+                
+                // Toggle this dropdown
+                $dropdown.toggle();
+            });
+
+            // Close dropdowns when clicking outside
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.filter-dropdown, .filter-button').length) {
+                    $('.filter-dropdown').hide();
+                }
+            });
+
+            // Select All button
+            $('.select-all-btn').on('click', function(e) {
+                e.stopPropagation();
+                var filterId = $(this).data('filter');
+                $('#' + filterId + ' .filter-checkbox').prop('checked', true).first().trigger('change');
+            });
+
+            // Clear All button
+            $('.clear-all-btn').on('click', function(e) {
+                e.stopPropagation();
+                var filterId = $(this).data('filter');
+                $('#' + filterId + ' .filter-checkbox').prop('checked', false).first().trigger('change');
+            });
+
+            // Store filter states for each column
+            var columnFilters = {};
             columns.forEach(function(col, idx) {
-                // Dropdown filter
-                $(`#filter${idx}`).on('change', function() {
-                    table.column(idx).search(this.value).draw();
+                columnFilters[idx] = null; // null means all values allowed
+            });
+
+            // Custom search function for multi-select filters
+            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                for (var colIdx in columnFilters) {
+                    var allowedValues = columnFilters[colIdx];
+                    if (allowedValues !== null && allowedValues.length > 0) {
+                        var cellValue = data[colIdx];
+                        if (!allowedValues.includes(cellValue)) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+
+            // Helper function to decode HTML entities
+            function decodeHtmlEntities(str) {
+                var txt = document.createElement("textarea");
+                txt.innerHTML = str;
+                return txt.value;
+            }
+
+            columns.forEach(function(col, idx) {
+                // Multi-select checkbox filter
+                $(`#filter${idx} .filter-checkbox`).on('change', function() {
+                    // Get all checked values for this column
+                    var checkedValues = [];
+                    $(`#filter${idx} .filter-checkbox:checked`).each(function() {
+                        // Decode HTML entities from the value attribute
+                        checkedValues.push(decodeHtmlEntities($(this).val()));
+                    });
+                    
+                    // Update filter state
+                    if (checkedValues.length === 0) {
+                        // No values selected, filter to show nothing
+                        columnFilters[idx] = [];
+                    } else if (checkedValues.length === $(`#filter${idx} .filter-checkbox`).length) {
+                        // All values selected, no filter needed
+                        columnFilters[idx] = null;
+                    } else {
+                        // Some values selected
+                        columnFilters[idx] = checkedValues;
+                    }
+                    
+                    table.draw();
                 });
                 // Date range filter
-                if (col.title.toLowerCase().includes('date')) {
+                if (col.data.toLowerCase().includes('date')) {
                     $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
                         var min = $(`#minDate${idx}`).val();
                         var max = $(`#maxDate${idx}`).val();
