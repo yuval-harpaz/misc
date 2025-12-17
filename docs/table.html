@@ -256,7 +256,7 @@
                             var wb = XLSX.utils.book_new();
                             var ws_data = [cols.map(c => c.title)];
                             rows.forEach(function(row) {
-                                ws_data.push(cols.map(c => row[c.title]));
+                                ws_data.push(cols.map(c => row[c.data] || ''));
                             });
                             var ws = XLSX.utils.aoa_to_sheet(ws_data);
                             XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
