@@ -164,6 +164,11 @@
                 var tr = "<tr>";
                 columns.forEach(function(col) {
                     var cellData = row[col.data] || "";
+                    // Convert Age to integer
+                    if (col.data === 'Age' && cellData) {
+                        var ageNum = parseInt(cellData);
+                        cellData = isNaN(ageNum) ? '' : ageNum.toString();
+                    }
                     // Translate Gender values
                     if (col.data === 'Gender' && cellData && translations[cellData]) {
                         cellData = translations[cellData];
@@ -311,7 +316,28 @@
                             var wb = XLSX.utils.book_new();
                             var ws_data = [cols.map(c => c.title)];
                             rows.forEach(function(row) {
-                                ws_data.push(cols.map(c => row[c.data] || ''));
+                                ws_data.push(cols.map(c => {
+                                    var cellData = row[c.data] || '';
+                                    // Convert Age to integer
+                                    if (c.data === 'Age' && cellData) {
+                                        var ageNum = parseInt(cellData);
+                                        cellData = isNaN(ageNum) ? '' : ageNum.toString();
+                                    }
+                                    // Apply translations same as display
+                                    if (c.data === 'Gender' && cellData && translations[cellData]) {
+                                        cellData = translations[cellData];
+                                    }
+                                    if (c.data === 'front' && cellData && translations[cellData]) {
+                                        cellData = translations[cellData];
+                                    }
+                                    if (c.data === 'Status' && cellData) {
+                                        cellData = cellData.split(';').map(function(part) {
+                                            var trimmed = part.trim();
+                                            return translations[trimmed] || trimmed;
+                                        }).join('; ');
+                                    }
+                                    return cellData;
+                                }));
                             });
                             var ws = XLSX.utils.aoa_to_sheet(ws_data);
                             XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
