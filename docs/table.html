@@ -118,7 +118,29 @@
                 'Party': 'מסיבה',
                 'Residence': 'מקום מגורים',
                 'Event date': 'תאריך אירוע',
-                'Death date': 'תאריך פטירה'
+                'Death date': 'תאריך פטירה',
+                // Gender values
+                'F': 'נ',
+                'M': 'ז',
+                // Front values
+                'Accident': 'תאונה',
+                'Gaza': 'עזה',
+                'Home': 'עורף',
+                'Iran': 'איראן',
+                'Iraq': 'עיראק',
+                'Jordan': 'ירדן',
+                'North': 'צפון',
+                'Other': 'אחר',
+                'West Bank': 'יהודה ושומרון',
+                'Yemen': 'תימן',
+                // Status values
+                'kidnapped': 'נחטף',
+                'killed': 'נהרג',
+                'returned': 'הוחזר',
+                'released': 'שוחרר',
+                'died': 'נפטר',
+                'rescued': 'חולץ',
+                'retrieved': 'הושב'
             };
             var columns = Object.keys(data[0])
                 .filter(function(col) { return hideCols.indexOf(col) === -1; })
@@ -142,6 +164,21 @@
                 var tr = "<tr>";
                 columns.forEach(function(col) {
                     var cellData = row[col.data] || "";
+                    // Translate Gender values
+                    if (col.data === 'Gender' && cellData && translations[cellData]) {
+                        cellData = translations[cellData];
+                    }
+                    // Translate Front values
+                    if (col.data === 'front' && cellData && translations[cellData]) {
+                        cellData = translations[cellData];
+                    }
+                    // Translate Status values (handle composite values)
+                    if (col.data === 'Status' && cellData) {
+                        cellData = cellData.split(';').map(function(part) {
+                            var trimmed = part.trim();
+                            return translations[trimmed] || trimmed;
+                        }).join('; ');
+                    }
                     // Make links clickable in הנצחה column
                     if (col.data === 'הנצחה' && cellData && cellData.match(/https?:\/\/[^\s]+/)) {
                         cellData = cellData.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
@@ -215,13 +252,31 @@
             columns.forEach(function(col, idx) {
                 if (
                     data.length > 0 &&
-                    data[0][col.data] &&
-                    data[0][col.data].length < 30 &&
                     !col.data.toLowerCase().includes('location class') &&
                     !col.data.toLowerCase().includes('date')
                 ) {
-                    var uniqueVals = [...new Set(data.map(row => row[col.data]).filter(v => v))].sort();
-                    if (uniqueVals.length > 1 && uniqueVals.length < 50) {
+                    var uniqueVals = [...new Set(data.map(row => {
+                        var val = row[col.data];
+                        // Translate Gender values
+                        if (col.data === 'Gender' && val && translations[val]) {
+                            return translations[val];
+                        }
+                        // Translate Front values
+                        if (col.data === 'front' && val && translations[val]) {
+                            return translations[val];
+                        }
+                        // Translate Status values (handle composite values)
+                        if (col.data === 'Status' && val) {
+                            return val.split(';').map(function(part) {
+                                var trimmed = part.trim();
+                                return translations[trimmed] || trimmed;
+                            }).join('; ');
+                        }
+                        return val;
+                    }).filter(v => v))].sort();
+                    // Check if values exist and their max length is reasonable
+                    var maxLen = Math.max(...uniqueVals.map(v => v.length));
+                    if (uniqueVals.length > 1 && uniqueVals.length < 50 && maxLen < 30) {
                         filterHtml += `<div style="display:inline-block; margin-left:15px; vertical-align:top; position:relative;">`;
                         filterHtml += `<button class="filter-button" data-filter="filter${idx}" style="padding:5px 10px; cursor:pointer;">${col.title} ▼</button>`;
                         filterHtml += `<div id="filter${idx}" class="filter-dropdown" style="display:none; position:absolute; z-index:1000; background:#fff; border:1px solid #ccc; padding:5px; min-width:150px; max-height:200px; overflow-y:auto; box-shadow:0 2px 5px rgba(0,0,0,0.2);">`;
@@ -403,6 +458,20 @@
                     var allowedValues = columnFilters[colIdx];
                     if (allowedValues !== null && allowedValues.length > 0) {
                         var cellValue = data[colIdx];
+                        // Apply translation if needed for comparison
+                        var colData = columns[colIdx].data;
+                        if (colData === 'Gender' && cellValue && translations[cellValue]) {
+                            cellValue = translations[cellValue];
+                        }
+                        if (colData === 'front' && cellValue && translations[cellValue]) {
+                            cellValue = translations[cellValue];
+                        }
+                        if (colData === 'Status' && cellValue) {
+                            cellValue = cellValue.split(';').map(function(part) {
+                                var trimmed = part.trim();
+                                return translations[trimmed] || trimmed;
+                            }).join('; ');
+                        }
                         if (!allowedValues.includes(cellValue)) {
                             return false;
                         }
