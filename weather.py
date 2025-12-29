@@ -9,7 +9,7 @@ from glob import glob
 # https://ims.gov.il/sites/default/files/2023-01/API%20explanation_1.pdf
 # https://ims.gov.il/he/ObservationDataAPI
 url = 'https://api.ims.gov.il/v1/Envista/stations'
-f = open('token.txt', 'r')
+f = open(os.environ['HOME']+'/misc_prev/token.txt', 'r')
 token = f.read()
 f.close()
 token = token.replace('\n', '')
