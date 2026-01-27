@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <link href="logo.png" rel="icon"/>
+    <link href="logo.png" rel="icon" />
     <meta charset="UTF-8">
     <title>Oct7 Database Viewer</title>
     <!-- DataTables CSS -->
@@ -21,8 +22,15 @@
             margin: 20px;
             background-color: #ede0d4;
         }
-        #filters { margin-bottom: 20px; }
-        label { margin-right: 10px; }
+
+        #filters {
+            margin-bottom: 20px;
+        }
+
+        label {
+            margin-right: 10px;
+        }
+
         .logo-topright {
             position: absolute;
             top: 20px;
@@ -32,12 +40,14 @@
             border-radius: 10px;
             z-index: 10;
         }
+
         #oct7table td {
             max-width: 15ch;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
         #oct7table th {
             position: relative;
             position: sticky;
@@ -45,29 +55,34 @@
             background-color: #ede0d4;
             z-index: 10;
         }
+
         #oct7table th:nth-child(1),
         #oct7table th:nth-child(2),
         #oct7table th:nth-child(3) {
             z-index: 11;
         }
+
         #oct7table td:nth-child(1) {
             position: sticky;
             left: 0;
             background-color: #ede0d4;
             z-index: 1;
         }
+
         #oct7table td:nth-child(2) {
             position: sticky;
             left: 0;
             background-color: #ede0d4;
             z-index: 1;
         }
+
         #oct7table td:nth-child(3) {
             position: sticky;
             left: 0;
             background-color: #ede0d4;
             z-index: 1;
         }
+
         .resizer {
             position: absolute;
             top: 0;
@@ -79,19 +94,22 @@
             z-index: 1000;
             background: transparent;
         }
+
         .resizer:hover {
             background-color: rgba(76, 175, 80, 0.5);
         }
     </style>
 </head>
+
 <body>
-        <img src="logo.png" alt="oct7database logo" class="logo-topright">
-        <h2>October 7 Database</h2>
-        <span>
-            <a href="https://oct7database.com" target="_blank">oct7database.com</a>
-            <button style="margin-left:10px;vertical-align:middle;" onclick="window.open('table.html', '_blank')">Hebrew</button>
-            <button id="resetButton" style="margin-left:10px;vertical-align:middle;">Reset</button>
-        </span><br><br>
+    <img src="logo.png" alt="oct7database logo" class="logo-topright">
+    <h2>October 7 Database</h2>
+    <span>
+        <a href="https://oct7database.com" target="_blank">oct7database.com</a>
+        <button style="margin-left:10px;vertical-align:middle;"
+            onclick="window.open('table.html', '_blank')">Hebrew</button>
+        <button id="resetButton" style="margin-left:10px;vertical-align:middle;">Reset</button>
+    </span><br><br>
     <div id="filters"></div>
     <table id="oct7table" class="display" style="width:100%">
         <thead></thead>
@@ -101,519 +119,610 @@
         <iframe id="map-iframe" width="100%" height="800" frameborder="0" style="border:0"></iframe>
     </div>
     <script>
-    // First load the location dictionary for Residence translations
-    var residenceTranslations = {};
-    
-    Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/location_dictionary.csv", {
-        download: true,
-        header: true,
-        complete: function(locationResults) {
-            // Build residence translation map from Hebrew to English
-            locationResults.data.forEach(function(row) {
-                if (row.Hebrew && row.English) {
-                    residenceTranslations[row.Hebrew] = row.English;
-                }
-            });
-            
-            // Now load the main database
-            loadMainData();
-        }
-    });
-    
-    function loadMainData() {
-    // Load CSV and initialize DataTable
-    Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/oct7database.csv", {
-        download: true,
-        header: true,
-        complete: function(results) {
-            var data = results.data;
-            var hideCols = ['שם פרטי', 'שם משפחה', 'שם נוסף', 'כינוי', 'מקום האירוע', 'מקום המוות', 'Event location class', 'Death location class'];
-            var translations = {
-                'front': 'Front',
-                'Status': 'Status',
-                'Role': 'Role',
-                'Country': 'Country',
-                'Gender': 'Gender',
-                'Age': 'Age',
-                'Party': 'Party',
-                'Residence': 'Residence',
-                'Event date': 'Event Date',
-                'Death date': 'Death Date',
-                'שם פרטי': 'First Name',
-                'שם משפחה': 'Last Name',
-                'שם נוסף': 'Middle Name',
-                'כינוי': 'Nickname',
-                'מקום האירוע': 'Event Location',
-                'מקום המוות': 'Death Location',
-                'סיבת המוות': 'Cause of Death',
-                'הנצחה': 'Memorial',
-                'הספריה הלאומית': 'National Library',
-                // Role values
-                'אזרח': 'Civilian',
-                'חייל': 'Soldier',
-                'כבאי': 'Firefighter',
-                'כיתת כוננות': 'Emergency Squad',
-                'צוות רפואי': 'Medical Team',
-                'שב"כ': 'Shin Bet',
-                'שוטר': 'Police',
-                // Country values
-                'אוקראינה': 'Ukraine',
-                'ארה"ב': 'USA',
-                'אריתריאה': 'Eritrea',
-                'בריטניה': 'Britain',
-                'גיאורגיה': 'Georgia',
-                'גרמניה': 'Germany',
-                'הודו': 'India',
-                'הפיליפינים': 'Philippines',
-                'טנזניה': 'Tanzania',
-                'יוון': 'Greece',
-                'ישראל': 'Israel',
-                'מולדובה': 'Moldova',
-                'מקסיקו': 'Mexico',
-                'נפאל': 'Nepal',
-                'סודן': 'Sudan',
-                'סין': 'China',
-                'סרי לנקה': 'Sri Lanka',
-                'עזה': 'Gaza',
-                'קמבודיה': 'Cambodia',
-                'קנדה': 'Canada',
-                'תאילנד': 'Thailand',
-                // Gender values
-                'F': 'Female',
-                'M': 'Male',
-                // Cause of Death values
-                'הפגזת צה"ל': 'IDF Shelling',
-                'נ.ט.': 'Anti-Tank',
-                'פיגוע ירי': 'Shooting Attack',
-                'ירי': 'Gunfire',
-                'ירי בשוגג': 'Friendly Fire',
-                'ירי צה"ל': 'IDF Fire',
-                'פצמ"ר': 'Mortar',
-                'רקטה': 'Rocket',
-                'צלף': 'Sniper',
-                'תאונה': 'Accident',
-                'מטען': 'Explosive',
-                'פיגוע דקירה': 'Stabbing Attack',
-                'ירי בשוגג; כטב"מ ישראלי': 'Friendly Fire; Israeli Drone',
-                'כטב"מ': 'Drone',
-                'פיגוע סקילה': 'Stoning Attack',
-                'פיגוע דריסה': 'Ramming Attack',
-                'פיגוע': 'Attack',
-                'פיגוע פטיש': 'Hammer Attack',
-                'מיירט': 'Interceptor',
-                'נפל': 'UXO',
-                'פיגוע חטיפה': 'Kidnapping Attack',
-                'פיצוץ רימון תקול': 'Grenade Malfunction',
-                'נסיון חטיפה': 'Kidnapping Attempt'
-            };
-            var columns = Object.keys(data[0])
-                .filter(function(col) { return hideCols.indexOf(col) === -1; })
-                .map(function(col) {
-                    return { title: translations[col] || col, data: col };
+        // First load the location dictionary for Residence translations
+        var residenceTranslations = {};
+
+        Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/location_dictionary.csv", {
+            download: true,
+            header: true,
+            complete: function (locationResults) {
+                // Build residence translation map from Hebrew to English
+                locationResults.data.forEach(function (row) {
+                    if (row.Hebrew && row.English) {
+                        residenceTranslations[row.Hebrew] = row.English;
+                    }
                 });
-            
-            // Find the index of the pid column
-            var pidColumnIndex = columns.findIndex(function(col) { return col.data === 'pid'; });
 
-            // Build table header
-            var thead = $("#oct7table thead");
-            var headerRow = "<tr>";
-            columns.forEach(function(col) { headerRow += "<th>" + col.title + "</th>"; });
-            headerRow += "</tr>";
-            thead.html(headerRow);
-
-            // Build table body
-            var tbody = $("#oct7table tbody");
-            data.forEach(function(row) {
-                var tr = "<tr>";
-                columns.forEach(function(col) {
-                    var cellData = row[col.data] || "";
-                    // Convert Age to integer
-                    if (col.data === 'Age' && cellData) {
-                        var ageNum = parseInt(cellData);
-                        cellData = isNaN(ageNum) ? '' : ageNum.toString();
-                    }
-                    // Translate Role values
-                    if (col.data === 'Role' && cellData && translations[cellData]) {
-                        cellData = translations[cellData];
-                    }
-                    // Translate Country values
-                    if (col.data === 'Country' && cellData && translations[cellData]) {
-                        cellData = translations[cellData];
-                    }
-                    // Translate Gender values
-                    if (col.data === 'Gender' && cellData && translations[cellData]) {
-                        cellData = translations[cellData];
-                    }
-                    // Translate Cause of Death values
-                    if (col.data === 'סיבת המוות' && cellData && translations[cellData]) {
-                        cellData = translations[cellData];
-                    }
-                    // Translate Residence values using location dictionary
-                    if (col.data === 'Residence' && cellData && residenceTranslations[cellData]) {
-                        cellData = residenceTranslations[cellData];
-                    }
-                    // Make links clickable in הנצחה column
-                    if (col.data === 'הנצחה' && cellData && cellData.match(/https?:\/\/[^\s]+/)) {
-                        cellData = cellData.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
-                    }
-                    // Make links for הספרייה הלאומית column
-                    if (col.data === 'הספריה הלאומית' && cellData) {
-                        cellData = '<a href="https://www.nli.org.il/he/authorities/' + cellData + '" target="_blank">' + cellData + '</a>';
-                    }
-                    tr += "<td>" + cellData + "</td>";
-                });
-                tr += "</tr>";
-                tbody.append(tr);
-            });
-
-            // Initialize DataTable
-            var table = $('#oct7table').DataTable({
-                dom: 'lrt', // Hide default search box and length menu
-                order: [],
-                paging: false, // Show all rows, no pagination
-                autoWidth: false
-            });
-
-            // Function to update sticky column positions
-            function updateStickyColumns() {
-                var col1Width = $('#oct7table th:nth-child(1)').outerWidth();
-                var col2Width = $('#oct7table th:nth-child(2)').outerWidth();
-                
-                // For LTR: second column is at col1Width from left, third is at col1Width + col2Width
-                $('#oct7table th:nth-child(2), #oct7table td:nth-child(2)').css('left', col1Width + 'px');
-                $('#oct7table th:nth-child(3), #oct7table td:nth-child(3)').css('left', (col1Width + col2Width) + 'px');
+                // Now load the main database
+                loadMainData();
             }
+        });
 
-            // Add resize handles to columns
-            setTimeout(function() {
-                updateStickyColumns();
-                $('#oct7table thead th').each(function() {
-                    var $th = $(this);
-                    var $resizer = $('<div class="resizer"></div>');
-                    $th.append($resizer);
-                    
-                    $resizer.on('mousedown', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        var startX = e.pageX;
-                        var startWidth = $th.outerWidth();
-                        
-                        $(document).on('mousemove.resize', function(e) {
-                            e.preventDefault();
-                            var width = startWidth + (e.pageX - startX);
-                            if (width > 50) {
-                                $th.css('width', width + 'px');
-                                $th.css('min-width', width + 'px');
-                                $th.css('max-width', width + 'px');
+        function loadMainData() {
+            // Load CSV and initialize DataTable
+            Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/oct7database.csv", {
+                download: true,
+                header: true,
+                complete: function (results) {
+                    var data = results.data;
+                    var hideCols = ['שם פרטי', 'שם משפחה', 'שם נוסף', 'כינוי', 'מקום האירוע', 'מקום המוות', 'Event location class', 'Death location class'];
+                    var translations = {
+                        'front': 'Front',
+                        'Status': 'Status',
+                        'Role': 'Role',
+                        'Country': 'Country',
+                        'Gender': 'Gender',
+                        'Age': 'Age',
+                        'Party': 'Party',
+                        'Residence': 'Residence',
+                        'Event date': 'Event Date',
+                        'Death date': 'Death Date',
+                        'שם פרטי': 'First Name',
+                        'שם משפחה': 'Last Name',
+                        'שם נוסף': 'Middle Name',
+                        'כינוי': 'Nickname',
+                        'מקום האירוע': 'Event Location',
+                        'מקום המוות': 'Death Location',
+                        'סיבת המוות': 'Cause of Death',
+                        'הנצחה': 'Memorial',
+                        'הספריה הלאומית': 'National Library',
+                        // Role values
+                        'אזרח': 'Civilian',
+                        'חייל': 'Soldier',
+                        'כבאי': 'Firefighter',
+                        'כיתת כוננות': 'Emergency Squad',
+                        'צוות רפואי': 'Medical Team',
+                        'שב"כ': 'Shin Bet',
+                        'שוטר': 'Police',
+                        // Country values
+                        'אוקראינה': 'Ukraine',
+                        'ארה"ב': 'USA',
+                        'אריתריאה': 'Eritrea',
+                        'בריטניה': 'Britain',
+                        'גיאורגיה': 'Georgia',
+                        'גרמניה': 'Germany',
+                        'הודו': 'India',
+                        'הפיליפינים': 'Philippines',
+                        'טנזניה': 'Tanzania',
+                        'יוון': 'Greece',
+                        'ישראל': 'Israel',
+                        'מולדובה': 'Moldova',
+                        'מקסיקו': 'Mexico',
+                        'נפאל': 'Nepal',
+                        'סודן': 'Sudan',
+                        'סין': 'China',
+                        'סרי לנקה': 'Sri Lanka',
+                        'עזה': 'Gaza',
+                        'קמבודיה': 'Cambodia',
+                        'קנדה': 'Canada',
+                        'תאילנד': 'Thailand',
+                        // Gender values
+                        'F': 'Female',
+                        'M': 'Male',
+                        // Cause of Death values
+                        'הפגזת צה"ל': 'IDF Shelling',
+                        'נ.ט.': 'Anti-Tank',
+                        'פיגוע ירי': 'Shooting Attack',
+                        'ירי': 'Gunfire',
+                        'ירי בשוגג': 'Friendly Fire',
+                        'ירי צה"ל': 'IDF Fire',
+                        'פצמ"ר': 'Mortar',
+                        'רקטה': 'Rocket',
+                        'צלף': 'Sniper',
+                        'תאונה': 'Accident',
+                        'מטען': 'Explosive',
+                        'פיגוע דקירה': 'Stabbing Attack',
+                        'ירי בשוגג; כטב"מ ישראלי': 'Friendly Fire; Israeli Drone',
+                        'כטב"מ': 'Drone',
+                        'פיגוע סקילה': 'Stoning Attack',
+                        'פיגוע דריסה': 'Ramming Attack',
+                        'פיגוע': 'Attack',
+                        'פיגוע פטיש': 'Hammer Attack',
+                        'מיירט': 'Interceptor',
+                        'נפל': 'UXO',
+                        'פיגוע חטיפה': 'Kidnapping Attack',
+                        'פיצוץ רימון תקול': 'Grenade Malfunction',
+                        'נסיון חטיפה': 'Kidnapping Attempt'
+                    };
+                    var columns = Object.keys(data[0])
+                        .filter(function (col) { return hideCols.indexOf(col) === -1; })
+                        .map(function (col) {
+                            return { title: translations[col] || col, data: col };
+                        });
+
+                    // Find the index of the pid column
+                    var pidColumnIndex = columns.findIndex(function (col) { return col.data === 'pid'; });
+
+                    // Build table header
+                    var thead = $("#oct7table thead");
+                    var headerRow = "<tr>";
+                    columns.forEach(function (col) { headerRow += "<th>" + col.title + "</th>"; });
+                    headerRow += "</tr>";
+                    thead.html(headerRow);
+
+                    // Build table body
+                    var tbody = $("#oct7table tbody");
+                    data.forEach(function (row) {
+                        var tr = "<tr>";
+                        columns.forEach(function (col) {
+                            var cellData = row[col.data] || "";
+                            // Convert Age to integer
+                            if (col.data === 'Age' && cellData) {
+                                var ageNum = parseInt(cellData);
+                                cellData = isNaN(ageNum) ? '' : ageNum.toString();
                             }
+                            // Translate Role values
+                            if (col.data === 'Role' && cellData && translations[cellData]) {
+                                cellData = translations[cellData];
+                            }
+                            // Translate Country values
+                            if (col.data === 'Country' && cellData && translations[cellData]) {
+                                cellData = translations[cellData];
+                            }
+                            // Translate Gender values
+                            if (col.data === 'Gender' && cellData && translations[cellData]) {
+                                cellData = translations[cellData];
+                            }
+                            // Translate Cause of Death values
+                            if (col.data === 'סיבת המוות' && cellData && translations[cellData]) {
+                                cellData = translations[cellData];
+                            }
+                            // Translate Residence values using location dictionary
+                            if (col.data === 'Residence' && cellData && residenceTranslations[cellData]) {
+                                cellData = residenceTranslations[cellData];
+                            }
+                            // Make links clickable in הנצחה column
+                            if (col.data === 'הנצחה' && cellData && cellData.match(/https?:\/\/[^\s]+/)) {
+                                cellData = cellData.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+                            }
+                            // Make links for הספרייה הלאומית column
+                            if (col.data === 'הספריה הלאומית' && cellData) {
+                                cellData = '<a href="https://www.nli.org.il/he/authorities/' + cellData + '" target="_blank">' + cellData + '</a>';
+                            }
+                            tr += "<td>" + cellData + "</td>";
                         });
-                        
-                        $(document).on('mouseup.resize', function() {
-                            $(document).off('mousemove.resize mouseup.resize');
-                            updateStickyColumns();
-                        });
+                        tr += "</tr>";
+                        tbody.append(tr);
                     });
-                });
-            }, 100);
 
-            // Build filters for categorical columns and date range
-            var filterHtml = '';
-            var todayStr = new Date().toISOString().slice(0,10);
-            var oct7Str = '2023-10-07';
-            filterHtml += `<div id="search-row"><label>Free search: <input type="text" id="globalSearch" placeholder="Search all columns..."></label> `;
-            columns.forEach(function(col, idx) {
-                if (
-                    data.length > 0 &&
-                    !col.data.toLowerCase().includes('location class') &&
-                    !col.data.toLowerCase().includes('date')
-                ) {
-                    // Get unique values, applying translations if needed
-                    var uniqueVals = [...new Set(data.map(row => {
-                        var val = row[col.data];
-                        // Translate if this is Role, Country, Gender, or Cause of Death
-                        if ((col.data === 'Role' || col.data === 'Country' || col.data === 'Gender' || col.data === 'סיבת המוות') && val && translations[val]) {
-                            return translations[val];
-                        }
-                        // Translate Residence values using location dictionary
-                        if (col.data === 'Residence' && val && residenceTranslations[val]) {
-                            return residenceTranslations[val];
-                        }
-                        return val;
-                    }).filter(v => v))].sort();
-                    // Check if values exist and their max length is reasonable
-                    var maxLen = Math.max(...uniqueVals.map(v => v.length));
-                    if (uniqueVals.length > 1 && uniqueVals.length < 50 && maxLen < 30) {
-                        filterHtml += `<div style="display:inline-block; margin-left:15px; vertical-align:top; position:relative;">`;
-                        filterHtml += `<button class="filter-button" data-filter="filter${idx}" style="padding:5px 10px; cursor:pointer;">${col.title} ▼</button>`;
-                        filterHtml += `<div id="filter${idx}" class="filter-dropdown" style="display:none; position:absolute; z-index:1000; background:#fff; border:1px solid #ccc; padding:5px; min-width:150px; max-height:200px; overflow-y:auto; box-shadow:0 2px 5px rgba(0,0,0,0.2);">`;
-                        filterHtml += `<div style="margin-bottom:5px; border-bottom:1px solid #ccc; padding-bottom:5px;">`;
-                        filterHtml += `<button class="select-all-btn" data-filter="filter${idx}" style="margin-right:5px; padding:2px 8px; cursor:pointer;">All</button>`;
-                        filterHtml += `<button class="clear-all-btn" data-filter="filter${idx}" style="padding:2px 8px; cursor:pointer;">Clear</button>`;
-                        filterHtml += `</div>`;
-                        uniqueVals.forEach(function(val) {
-                            var escapedVal = val.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                            filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="filter-checkbox" data-column="${idx}" value="${escapedVal}" data-original-value="${escapedVal}" checked> ${val}</label>`;
-                        });
-                        filterHtml += `</div></div>`;
+                    // Initialize DataTable
+                    var table = $('#oct7table').DataTable({
+                        dom: 'lrt', // Hide default search box and length menu
+                        order: [],
+                        paging: false, // Show all rows, no pagination
+                        autoWidth: false
+                    });
+
+                    // Function to update sticky column positions
+                    function updateStickyColumns() {
+                        var col1Width = $('#oct7table th:nth-child(1)').outerWidth();
+                        var col2Width = $('#oct7table th:nth-child(2)').outerWidth();
+
+                        // For LTR: second column is at col1Width from left, third is at col1Width + col2Width
+                        $('#oct7table th:nth-child(2), #oct7table td:nth-child(2)').css('left', col1Width + 'px');
+                        $('#oct7table th:nth-child(3), #oct7table td:nth-child(3)').css('left', (col1Width + col2Width) + 'px');
                     }
-                }
-            });
-            filterHtml += `</div><div id="date-row" style="margin-top:10px;">`;
-            columns.forEach(function(col, idx) {
-                if (col.data.toLowerCase().includes('date')) {
-                    filterHtml += `<label>${col.title} from <input type="date" id="minDate${idx}" value="${oct7Str}"> to <input type="date" id="maxDate${idx}" value="${todayStr}"></label> `;
-                }
-            });
-            filterHtml += `</div><div id="download-row" style="margin-top:10px;">
+
+                    // Add resize handles to columns
+                    setTimeout(function () {
+                        updateStickyColumns();
+                        $('#oct7table thead th').each(function () {
+                            var $th = $(this);
+                            var $resizer = $('<div class="resizer"></div>');
+                            $th.append($resizer);
+
+                            $resizer.on('mousedown', function (e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                var startX = e.pageX;
+                                var startWidth = $th.outerWidth();
+
+                                $(document).on('mousemove.resize', function (e) {
+                                    e.preventDefault();
+                                    var width = startWidth + (e.pageX - startX);
+                                    if (width > 50) {
+                                        $th.css('width', width + 'px');
+                                        $th.css('min-width', width + 'px');
+                                        $th.css('max-width', width + 'px');
+                                    }
+                                });
+
+                                $(document).on('mouseup.resize', function () {
+                                    $(document).off('mousemove.resize mouseup.resize');
+                                    updateStickyColumns();
+                                });
+                            });
+                        });
+                    }, 100);
+
+                    // Build filters for categorical columns and date range
+                    var filterHtml = '';
+                    var todayStr = new Date().toISOString().slice(0, 10);
+                    var oct7Str = '2023-10-07';
+                    filterHtml += `<div id="search-row"><label>Free search: <input type="text" id="globalSearch" placeholder="Search all columns..."></label> `;
+                    columns.forEach(function (col, idx) {
+                        if (
+                            data.length > 0 &&
+                            !col.data.toLowerCase().includes('location class') &&
+                            !col.data.toLowerCase().includes('date')
+                        ) {
+                            // Get unique values, applying translations if needed
+                            var uniqueVals = [...new Set(data.map(row => {
+                                var val = row[col.data];
+                                // Translate if this is Role, Country, Gender, or Cause of Death
+                                if ((col.data === 'Role' || col.data === 'Country' || col.data === 'Gender' || col.data === 'סיבת המוות') && val && translations[val]) {
+                                    return translations[val];
+                                }
+                                // Translate Residence values using location dictionary
+                                if (col.data === 'Residence' && val && residenceTranslations[val]) {
+                                    return residenceTranslations[val];
+                                }
+                                return val;
+                            }).filter(v => v))].sort();
+                            // Check if values exist and their max length is reasonable
+                            var maxLen = Math.max(...uniqueVals.map(v => v.length));
+                            if (uniqueVals.length > 1 && uniqueVals.length < 50 && maxLen < 30) {
+                                filterHtml += `<div style="display:inline-block; margin-left:15px; vertical-align:top; position:relative;">`;
+                                filterHtml += `<button class="filter-button" data-filter="filter${idx}" style="padding:5px 10px; cursor:pointer;">${col.title} ▼</button>`;
+                                filterHtml += `<div id="filter${idx}" class="filter-dropdown" style="display:none; position:absolute; z-index:1000; background:#fff; border:1px solid #ccc; padding:5px; min-width:150px; max-height:200px; overflow-y:auto; box-shadow:0 2px 5px rgba(0,0,0,0.2);">`;
+                                filterHtml += `<div style="margin-bottom:5px; border-bottom:1px solid #ccc; padding-bottom:5px;">`;
+                                filterHtml += `<button class="select-all-btn" data-filter="filter${idx}" style="margin-right:5px; padding:2px 8px; cursor:pointer;">All</button>`;
+                                filterHtml += `<button class="clear-all-btn" data-filter="filter${idx}" style="padding:2px 8px; cursor:pointer;">Clear</button>`;
+                                filterHtml += `</div>`;
+                                uniqueVals.forEach(function (val) {
+                                    var escapedVal = val.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                    filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="filter-checkbox" data-column="${idx}" value="${escapedVal}" data-original-value="${escapedVal}" checked> ${val}</label>`;
+                                });
+                                filterHtml += `</div></div>`;
+                            }
+                        }
+                    });
+
+                    // Add memorial site filter (הנצחה column) - inline with other filter buttons
+                    filterHtml += `<div style="display:inline-block; margin-left:15px; vertical-align:top; position:relative;">`;
+                    filterHtml += `<button class="filter-button" data-filter="filterMemorial" style="padding:5px 10px; cursor:pointer;">Memorial Site ▼</button>`;
+                    filterHtml += `<div id="filterMemorial" class="filter-dropdown" style="display:none; position:absolute; z-index:1000; background:#fff; border:1px solid #ccc; padding:5px; min-width:200px; max-height:250px; overflow-y:auto; box-shadow:0 2px 5px rgba(0,0,0,0.2);">`;
+                    filterHtml += `<div style="margin-bottom:5px; border-bottom:1px solid #ccc; padding-bottom:5px;">`;
+                    filterHtml += `<button class="select-all-memorial-btn" style="margin-right:5px; padding:2px 8px; cursor:pointer;">All</button>`;
+                    filterHtml += `<button class="clear-all-memorial-btn" style="padding:2px 8px; cursor:pointer;">Clear</button>`;
+                    filterHtml += `</div>`;
+                    filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="idf.il" checked> IDF Fallen</label>`;
+                    filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="laad.btl.gov.il" checked> National Insurance (Civilians)</label>`;
+                    filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="lezichram.police.gov.il" checked> Israel Police</label>`;
+                    filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="shabak.gov.il" checked> Shin Bet</label>`;
+                    filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="izkor.gov.il" checked> Yizkor</label>`;
+                    filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="other" checked> Other / None</label>`;
+                    filterHtml += `</div></div>`;
+
+                    filterHtml += `</div><div id="date-row" style="margin-top:10px;">`;
+                    columns.forEach(function (col, idx) {
+                        if (col.data.toLowerCase().includes('date')) {
+                            filterHtml += `<label>${col.title} from <input type="date" id="minDate${idx}" value="${oct7Str}"> to <input type="date" id="maxDate${idx}" value="${todayStr}"></label> `;
+                        }
+                    });
+                    filterHtml += `</div><div id="download-row" style="margin-top:10px;">
                 <button id="downloadFullXLSX">Download full table (XLSX)</button>
                 <button id="downloadFilteredXLSX">Download filtered data (XLSX)</button>
             </div>`;
-            $("#filters").html(filterHtml);
+                    $("#filters").html(filterHtml);
 
-            // Filtering logic
-                        // XLSX download logic
-                        function exportToXLSX(rows, cols, filename) {
-                            var wb = XLSX.utils.book_new();
-                            var ws_data = [cols.map(c => c.title)];
-                            rows.forEach(function(row) {
-                                ws_data.push(cols.map(c => {
-                                    var cellData = row[c.data] || '';
-                                    // Convert Age to integer
-                                    if (c.data === 'Age' && cellData) {
-                                        var ageNum = parseInt(cellData);
-                                        cellData = isNaN(ageNum) ? '' : ageNum.toString();
-                                    }
-                                    // Apply translations same as display
-                                    if (c.data === 'Role' && cellData && translations[cellData]) {
-                                        cellData = translations[cellData];
-                                    }
-                                    if (c.data === 'Country' && cellData && translations[cellData]) {
-                                        cellData = translations[cellData];
-                                    }
-                                    if (c.data === 'Gender' && cellData && translations[cellData]) {
-                                        cellData = translations[cellData];
-                                    }
-                                    if (c.data === 'סיבת המוות' && cellData && translations[cellData]) {
-                                        cellData = translations[cellData];
-                                    }
-                                    if (c.data === 'Residence' && cellData && residenceTranslations[cellData]) {
-                                        cellData = residenceTranslations[cellData];
-                                    }
-                                    return cellData;
-                                }));
-                            });
-                            var ws = XLSX.utils.aoa_to_sheet(ws_data);
-                            XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-                            XLSX.writeFile(wb, filename);
-                        }
-                        // Load SheetJS
-                        if (typeof XLSX === 'undefined') {
-                            var xlsxScript = document.createElement('script');
-                            xlsxScript.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
-                            document.head.appendChild(xlsxScript);
-                        }
-                        $('#downloadFullXLSX').on('click', function() {
-                            exportToXLSX(data, columns, 'oct7database_full.xlsx');
+                    // Filtering logic
+                    // XLSX download logic
+                    function exportToXLSX(rows, cols, filename) {
+                        var wb = XLSX.utils.book_new();
+                        var ws_data = [cols.map(c => c.title)];
+                        rows.forEach(function (row) {
+                            ws_data.push(cols.map(c => {
+                                var cellData = row[c.data] || '';
+                                // Convert Age to integer
+                                if (c.data === 'Age' && cellData) {
+                                    var ageNum = parseInt(cellData);
+                                    cellData = isNaN(ageNum) ? '' : ageNum.toString();
+                                }
+                                // Apply translations same as display
+                                if (c.data === 'Role' && cellData && translations[cellData]) {
+                                    cellData = translations[cellData];
+                                }
+                                if (c.data === 'Country' && cellData && translations[cellData]) {
+                                    cellData = translations[cellData];
+                                }
+                                if (c.data === 'Gender' && cellData && translations[cellData]) {
+                                    cellData = translations[cellData];
+                                }
+                                if (c.data === 'סיבת המוות' && cellData && translations[cellData]) {
+                                    cellData = translations[cellData];
+                                }
+                                if (c.data === 'Residence' && cellData && residenceTranslations[cellData]) {
+                                    cellData = residenceTranslations[cellData];
+                                }
+                                return cellData;
+                            }));
                         });
-                        $('#downloadFilteredXLSX').on('click', function() {
-                            var filteredIndexes = table.rows({ filter: 'applied' }).indexes().toArray();
-                            var filteredRows = filteredIndexes.map(function(idx) { return data[idx]; });
-                            exportToXLSX(filteredRows, columns, 'oct7database_filtered.xlsx');
-                        });
-            
-            // Variable to store selected pid for filtering
-            var selectedPid = null;
-            
-            // Custom filter function for exact pid match
-            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-                if (selectedPid === null) {
-                    return true; // No pid filter active
-                }
-                var rowPid = data[pidColumnIndex]; // Use the pid column index
-                return rowPid === selectedPid;
-            });
-            
-            // Row click handler - log pid and filter to show only this row
-            $('#oct7table tbody').on('click', 'tr', function() {
-                var rowIndex = table.row(this).index();
-                if (rowIndex !== undefined && data[rowIndex]) {
-                    var pid = data[rowIndex].pid;
-                    console.log('Selected PID:', pid);
-                    
-                    // Set the selected pid and redraw to filter
-                    selectedPid = pid;
-                    table.draw();
-                }
-            });
-
-            // Check for single row after filtering
-            table.on('draw', function() {
-                var info = table.page.info();
-                var visibleRows = table.rows({ filter: 'applied' }).data().length;
-                // Only show map if there's exactly 1 row AND selectedPid is set (intentional selection)
-                if (visibleRows === 1 && selectedPid !== null) {
-                    var rowIndex = table.rows({ filter: 'applied' }).indexes()[0];
-                    if (rowIndex !== undefined && data[rowIndex]) {
-                        var pid = data[rowIndex].pid;
-                        console.log('Single row PID:', pid);
-                        
-                        // Show map with this pid
-                        $('#map-iframe').attr('src', 'locations_en.html?pid=' + pid);
-                        $('#map-container').show();
+                        var ws = XLSX.utils.aoa_to_sheet(ws_data);
+                        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+                        XLSX.writeFile(wb, filename);
                     }
-                } else {
-                    // Hide map when multiple rows visible or no intentional selection
-                    $('#map-container').hide();
-                }
-            });
-
-            // Free search bar
-            $('#globalSearch').on('input', function() {
-                table.search(this.value).draw();
-            });
-
-            // Reset button - clear all filters
-            $('#resetButton').on('click', function() {
-                // Clear selected pid filter
-                selectedPid = null;
-                
-                // Clear global search
-                $('#globalSearch').val('');
-                table.search('').columns().search('').draw();
-                
-                // Check all checkboxes (show all values)
-                $('.filter-checkbox').prop('checked', true);
-                
-                // Reset date filters to defaults
-                var todayStr = new Date().toISOString().slice(0,10);
-                var oct7Str = '2023-10-07';
-                columns.forEach(function(col, idx) {
-                    if (col.data.toLowerCase().includes('date')) {
-                        $(`#minDate${idx}`).val(oct7Str);
-                        $(`#maxDate${idx}`).val(todayStr);
+                    // Load SheetJS
+                    if (typeof XLSX === 'undefined') {
+                        var xlsxScript = document.createElement('script');
+                        xlsxScript.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+                        document.head.appendChild(xlsxScript);
                     }
-                });
-                
-                // Hide the map
-                $('#map-container').hide();
-                
-                // Redraw table
-                table.draw();
-            });
-
-            // Toggle filter dropdown visibility
-            $('.filter-button').on('click', function(e) {
-                e.stopPropagation();
-                var filterId = $(this).data('filter');
-                var $dropdown = $('#' + filterId);
-                
-                // Close all other dropdowns
-                $('.filter-dropdown').not($dropdown).hide();
-                
-                // Toggle this dropdown
-                $dropdown.toggle();
-            });
-
-            // Close dropdowns when clicking outside
-            $(document).on('click', function(e) {
-                if (!$(e.target).closest('.filter-dropdown, .filter-button').length) {
-                    $('.filter-dropdown').hide();
-                }
-            });
-
-            // Select All button
-            $('.select-all-btn').on('click', function(e) {
-                e.stopPropagation();
-                var filterId = $(this).data('filter');
-                $('#' + filterId + ' .filter-checkbox').prop('checked', true).first().trigger('change');
-            });
-
-            // Clear All button
-            $('.clear-all-btn').on('click', function(e) {
-                e.stopPropagation();
-                var filterId = $(this).data('filter');
-                $('#' + filterId + ' .filter-checkbox').prop('checked', false).first().trigger('change');
-            });
-
-            // Store filter states for each column
-            var columnFilters = {};
-            columns.forEach(function(col, idx) {
-                columnFilters[idx] = null; // null means all values allowed
-            });
-
-            // Custom search function for multi-select filters
-            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-                for (var colIdx in columnFilters) {
-                    var allowedValues = columnFilters[colIdx];
-                    if (allowedValues !== null && allowedValues.length > 0) {
-                        var cellValue = data[colIdx];
-                        // Apply translation if needed for comparison
-                        var colData = columns[colIdx].data;
-                        if ((colData === 'Role' || colData === 'Country' || colData === 'Gender' || colData === 'סיבת המוות') && cellValue && translations[cellValue]) {
-                            cellValue = translations[cellValue];
-                        }
-                        if (colData === 'Residence' && cellValue && residenceTranslations[cellValue]) {
-                            cellValue = residenceTranslations[cellValue];
-                        }
-                        if (!allowedValues.includes(cellValue)) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
-            });
-
-            // Helper function to decode HTML entities
-            function decodeHtmlEntities(str) {
-                var txt = document.createElement("textarea");
-                txt.innerHTML = str;
-                return txt.value;
-            }
-
-            columns.forEach(function(col, idx) {
-                // Multi-select checkbox filter
-                $(`#filter${idx} .filter-checkbox`).on('change', function() {
-                    // Get all checked values for this column
-                    var checkedValues = [];
-                    $(`#filter${idx} .filter-checkbox:checked`).each(function() {
-                        // Decode HTML entities from the value attribute
-                        checkedValues.push(decodeHtmlEntities($(this).val()));
+                    $('#downloadFullXLSX').on('click', function () {
+                        exportToXLSX(data, columns, 'oct7database_full.xlsx');
                     });
-                    
-                    // Update filter state
-                    if (checkedValues.length === 0) {
-                        // No values selected, filter to show nothing
-                        columnFilters[idx] = [];
-                    } else if (checkedValues.length === $(`#filter${idx} .filter-checkbox`).length) {
-                        // All values selected, no filter needed
-                        columnFilters[idx] = null;
-                    } else {
-                        // Some values selected
-                        columnFilters[idx] = checkedValues;
-                    }
-                    
-                    table.draw();
-                });
-                // Date range filter
-                if (col.data.toLowerCase().includes('date')) {
-                    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-                        var min = $(`#minDate${idx}`).val();
-                        var max = $(`#maxDate${idx}`).val();
-                        var dateStr = data[idx];
-                        if (!dateStr) return true;
-                        var date = new Date(dateStr);
-                        if ((min && date < new Date(min)) || (max && date > new Date(max))) return false;
+                    $('#downloadFilteredXLSX').on('click', function () {
+                        var filteredIndexes = table.rows({ filter: 'applied' }).indexes().toArray();
+                        var filteredRows = filteredIndexes.map(function (idx) { return data[idx]; });
+                        exportToXLSX(filteredRows, columns, 'oct7database_filtered.xlsx');
+                    });
+
+                    // Variable to store selected pid for filtering
+                    var selectedPid = null;
+
+                    // Custom filter function for exact pid match
+                    $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                        if (selectedPid === null) {
+                            return true; // No pid filter active
+                        }
+                        var rowPid = data[pidColumnIndex]; // Use the pid column index
+                        return rowPid === selectedPid;
+                    });
+
+                    // Row click handler - log pid and filter to show only this row
+                    $('#oct7table tbody').on('click', 'tr', function () {
+                        var rowIndex = table.row(this).index();
+                        if (rowIndex !== undefined && data[rowIndex]) {
+                            var pid = data[rowIndex].pid;
+                            console.log('Selected PID:', pid);
+
+                            // Set the selected pid and redraw to filter
+                            selectedPid = pid;
+                            table.draw();
+                        }
+                    });
+
+                    // Check for single row after filtering
+                    table.on('draw', function () {
+                        var info = table.page.info();
+                        var visibleRows = table.rows({ filter: 'applied' }).data().length;
+                        // Only show map if there's exactly 1 row AND selectedPid is set (intentional selection)
+                        if (visibleRows === 1 && selectedPid !== null) {
+                            var rowIndex = table.rows({ filter: 'applied' }).indexes()[0];
+                            if (rowIndex !== undefined && data[rowIndex]) {
+                                var pid = data[rowIndex].pid;
+                                console.log('Single row PID:', pid);
+
+                                // Show map with this pid
+                                $('#map-iframe').attr('src', 'locations_en.html?pid=' + pid);
+                                $('#map-container').show();
+                            }
+                        } else {
+                            // Hide map when multiple rows visible or no intentional selection
+                            $('#map-container').hide();
+                        }
+                    });
+
+                    // Free search bar
+                    $('#globalSearch').on('input', function () {
+                        table.search(this.value).draw();
+                    });
+
+                    // Reset button - clear all filters
+                    $('#resetButton').on('click', function () {
+                        // Clear selected pid filter
+                        selectedPid = null;
+
+                        // Clear global search
+                        $('#globalSearch').val('');
+                        table.search('').columns().search('').draw();
+
+                        // Check all checkboxes (show all values)
+                        $('.filter-checkbox').prop('checked', true);
+
+                        // Reset memorial filter
+                        $('.memorial-checkbox').prop('checked', true);
+
+                        // Reset date filters to defaults
+                        var todayStr = new Date().toISOString().slice(0, 10);
+                        var oct7Str = '2023-10-07';
+                        columns.forEach(function (col, idx) {
+                            if (col.data.toLowerCase().includes('date')) {
+                                $(`#minDate${idx}`).val(oct7Str);
+                                $(`#maxDate${idx}`).val(todayStr);
+                            }
+                        });
+
+                        // Hide the map
+                        $('#map-container').hide();
+
+                        // Redraw table
+                        table.draw();
+                    });
+
+                    // Toggle filter dropdown visibility
+                    $('.filter-button').on('click', function (e) {
+                        e.stopPropagation();
+                        var filterId = $(this).data('filter');
+                        var $dropdown = $('#' + filterId);
+
+                        // Close all other dropdowns
+                        $('.filter-dropdown').not($dropdown).hide();
+
+                        // Toggle this dropdown
+                        $dropdown.toggle();
+                    });
+
+                    // Close dropdowns when clicking outside
+                    $(document).on('click', function (e) {
+                        if (!$(e.target).closest('.filter-dropdown, .filter-button').length) {
+                            $('.filter-dropdown').hide();
+                        }
+                    });
+
+                    // Select All button
+                    $('.select-all-btn').on('click', function (e) {
+                        e.stopPropagation();
+                        var filterId = $(this).data('filter');
+                        $('#' + filterId + ' .filter-checkbox').prop('checked', true).first().trigger('change');
+                    });
+
+                    // Clear All button
+                    $('.clear-all-btn').on('click', function (e) {
+                        e.stopPropagation();
+                        var filterId = $(this).data('filter');
+                        $('#' + filterId + ' .filter-checkbox').prop('checked', false).first().trigger('change');
+                    });
+
+                    // Memorial site filter logic
+                    var memorialFilterValues = null; // null = show all
+
+                    // Find the index of הנצחה column
+                    var memorialColIdx = columns.findIndex(function (col) { return col.data === 'הנצחה'; });
+
+                    $('.memorial-checkbox').on('change', function () {
+                        var checkedValues = [];
+                        $('.memorial-checkbox:checked').each(function () {
+                            checkedValues.push($(this).val());
+                        });
+
+                        if (checkedValues.length === 0) {
+                            memorialFilterValues = [];
+                        } else if (checkedValues.length === $('.memorial-checkbox').length) {
+                            memorialFilterValues = null; // all selected = no filter
+                        } else {
+                            memorialFilterValues = checkedValues;
+                        }
+                        table.draw();
+                    });
+
+                    $('.select-all-memorial-btn').on('click', function (e) {
+                        e.stopPropagation();
+                        $('.memorial-checkbox').prop('checked', true).first().trigger('change');
+                    });
+
+                    $('.clear-all-memorial-btn').on('click', function (e) {
+                        e.stopPropagation();
+                        $('.memorial-checkbox').prop('checked', false).first().trigger('change');
+                    });
+
+                    // Custom filter for memorial sites
+                    $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex) {
+                        if (memorialFilterValues === null) return true; // No filter
+                        if (memorialFilterValues.length === 0) return false; // Nothing selected
+
+                        var memorialUrl = searchData[memorialColIdx] || '';
+
+                        // Check which site this URL belongs to
+                        for (var i = 0; i < memorialFilterValues.length; i++) {
+                            var site = memorialFilterValues[i];
+                            if (site === 'other') {
+                                // "Other" matches empty or URLs not matching known sites
+                                if (!memorialUrl ||
+                                    (!memorialUrl.includes('idf.il') &&
+                                        !memorialUrl.includes('laad.btl.gov.il') &&
+                                        !memorialUrl.includes('lezichram.police.gov.il') &&
+                                        !memorialUrl.includes('shabak.gov.il') &&
+                                        !memorialUrl.includes('izkor.gov.il'))) {
+                                    return true;
+                                }
+                            } else if (memorialUrl.includes(site)) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+
+                    // Store filter states for each column
+                    var columnFilters = {};
+                    columns.forEach(function (col, idx) {
+                        columnFilters[idx] = null; // null means all values allowed
+                    });
+
+                    // Custom search function for multi-select filters
+                    $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                        for (var colIdx in columnFilters) {
+                            var allowedValues = columnFilters[colIdx];
+                            if (allowedValues !== null && allowedValues.length > 0) {
+                                var cellValue = data[colIdx];
+                                // Apply translation if needed for comparison
+                                var colData = columns[colIdx].data;
+                                if ((colData === 'Role' || colData === 'Country' || colData === 'Gender' || colData === 'סיבת המוות') && cellValue && translations[cellValue]) {
+                                    cellValue = translations[cellValue];
+                                }
+                                if (colData === 'Residence' && cellValue && residenceTranslations[cellValue]) {
+                                    cellValue = residenceTranslations[cellValue];
+                                }
+                                if (!allowedValues.includes(cellValue)) {
+                                    return false;
+                                }
+                            }
+                        }
                         return true;
                     });
-                    $(`#minDate${idx}, #maxDate${idx}`).on('change', function() {
-                        table.draw();
+
+                    // Helper function to decode HTML entities
+                    function decodeHtmlEntities(str) {
+                        var txt = document.createElement("textarea");
+                        txt.innerHTML = str;
+                        return txt.value;
+                    }
+
+                    columns.forEach(function (col, idx) {
+                        // Multi-select checkbox filter
+                        $(`#filter${idx} .filter-checkbox`).on('change', function () {
+                            // Get all checked values for this column
+                            var checkedValues = [];
+                            $(`#filter${idx} .filter-checkbox:checked`).each(function () {
+                                // Decode HTML entities from the value attribute
+                                checkedValues.push(decodeHtmlEntities($(this).val()));
+                            });
+
+                            // Update filter state
+                            if (checkedValues.length === 0) {
+                                // No values selected, filter to show nothing
+                                columnFilters[idx] = [];
+                            } else if (checkedValues.length === $(`#filter${idx} .filter-checkbox`).length) {
+                                // All values selected, no filter needed
+                                columnFilters[idx] = null;
+                            } else {
+                                // Some values selected
+                                columnFilters[idx] = checkedValues;
+                            }
+
+                            table.draw();
+                        });
+                        // Date range filter
+                        if (col.data.toLowerCase().includes('date')) {
+                            $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                                var min = $(`#minDate${idx}`).val();
+                                var max = $(`#maxDate${idx}`).val();
+                                var dateStr = data[idx];
+                                if (!dateStr) return true;
+
+                                // Handle year-only dates (e.g., "2023") - treat as valid if year is in range
+                                if (/^\d{4}$/.test(dateStr.trim())) {
+                                    var year = parseInt(dateStr.trim());
+                                    var minYear = min ? new Date(min).getFullYear() : null;
+                                    var maxYear = max ? new Date(max).getFullYear() : null;
+                                    if ((minYear && year < minYear) || (maxYear && year > maxYear)) return false;
+                                    return true;
+                                }
+
+                                var date = new Date(dateStr);
+                                if (isNaN(date.getTime())) return true; // Invalid date, don't filter out
+                                if ((min && date < new Date(min)) || (max && date > new Date(max))) return false;
+                                return true;
+                            });
+                            $(`#minDate${idx}, #maxDate${idx}`).on('change', function () {
+                                table.draw();
+                            });
+                        }
                     });
                 }
             });
         }
-    });
-    }
     </script>
 </body>
+
 </html>

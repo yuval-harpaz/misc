@@ -327,12 +327,30 @@
                         }
                     }
                 });
+
+                // Add memorial site filter (הנצחה column) - inline with other filter buttons
+                filterHtml += `<div style="display:inline-block; margin-left:15px; vertical-align:top; position:relative;">`;
+                filterHtml += `<button class="filter-button" data-filter="filterMemorial" style="padding:5px 10px; cursor:pointer;">אתר הנצחה ▼</button>`;
+                filterHtml += `<div id="filterMemorial" class="filter-dropdown" style="display:none; position:absolute; z-index:1000; background:#fff; border:1px solid #ccc; padding:5px; min-width:200px; max-height:250px; overflow-y:auto; box-shadow:0 2px 5px rgba(0,0,0,0.2);">`;
+                filterHtml += `<div style="margin-bottom:5px; border-bottom:1px solid #ccc; padding-bottom:5px;">`;
+                filterHtml += `<button class="select-all-memorial-btn" style="margin-left:5px; padding:2px 8px; cursor:pointer;">הכל</button>`;
+                filterHtml += `<button class="clear-all-memorial-btn" style="padding:2px 8px; cursor:pointer;">נקה</button>`;
+                filterHtml += `</div>`;
+                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="idf.il" checked> חללי צה"ל</label>`;
+                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="laad.btl.gov.il" checked> ביטוח לאומי (אזרחים)</label>`;
+                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="lezichram.police.gov.il" checked> משטרת ישראל</label>`;
+                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="shabak.gov.il" checked> שב"כ</label>`;
+                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="izkor.gov.il" checked> יזכור</label>`;
+                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="other" checked> אחר / ללא</label>`;
+                filterHtml += `</div></div>`;
+
                 filterHtml += `</div><div id="date-row" style="margin-top:10px;">`;
                 columns.forEach(function (col, idx) {
                     if (col.data.toLowerCase().includes('date')) {
                         filterHtml += `<label>${col.title} מ <input type="date" id="minDate${idx}" value="${oct7Str}"> עד <input type="date" id="maxDate${idx}" value="${todayStr}"></label> `;
                     }
                 });
+
                 filterHtml += `</div><div id="download-row" style="margin-top:10px;">
                 <button id="downloadFullXLSX">הורד את כל הטבלה (XLSX)</button>
                 <button id="downloadFilteredXLSX">הורד נתונים מסוננים (XLSX)</button>
@@ -450,6 +468,9 @@
                     // Check all checkboxes (show all values)
                     $('.filter-checkbox').prop('checked', true);
 
+                    // Reset memorial filter
+                    $('.memorial-checkbox').prop('checked', true);
+
                     // Reset date filters to defaults
                     var todayStr = new Date().toISOString().slice(0, 10);
                     var oct7Str = '2023-10-07';
@@ -499,6 +520,65 @@
                     e.stopPropagation();
                     var filterId = $(this).data('filter');
                     $('#' + filterId + ' .filter-checkbox').prop('checked', false).first().trigger('change');
+                });
+
+                // Memorial site filter logic
+                var memorialFilterValues = null; // null = show all
+
+                // Find the index of הנצחה column
+                var memorialColIdx = columns.findIndex(function (col) { return col.data === 'הנצחה'; });
+
+                $('.memorial-checkbox').on('change', function () {
+                    var checkedValues = [];
+                    $('.memorial-checkbox:checked').each(function () {
+                        checkedValues.push($(this).val());
+                    });
+
+                    if (checkedValues.length === 0) {
+                        memorialFilterValues = [];
+                    } else if (checkedValues.length === $('.memorial-checkbox').length) {
+                        memorialFilterValues = null; // all selected = no filter
+                    } else {
+                        memorialFilterValues = checkedValues;
+                    }
+                    table.draw();
+                });
+
+                $('.select-all-memorial-btn').on('click', function (e) {
+                    e.stopPropagation();
+                    $('.memorial-checkbox').prop('checked', true).first().trigger('change');
+                });
+
+                $('.clear-all-memorial-btn').on('click', function (e) {
+                    e.stopPropagation();
+                    $('.memorial-checkbox').prop('checked', false).first().trigger('change');
+                });
+
+                // Custom filter for memorial sites
+                $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex) {
+                    if (memorialFilterValues === null) return true; // No filter
+                    if (memorialFilterValues.length === 0) return false; // Nothing selected
+
+                    var memorialUrl = searchData[memorialColIdx] || '';
+
+                    // Check which site this URL belongs to
+                    for (var i = 0; i < memorialFilterValues.length; i++) {
+                        var site = memorialFilterValues[i];
+                        if (site === 'other') {
+                            // "Other" matches empty or URLs not matching known sites
+                            if (!memorialUrl ||
+                                (!memorialUrl.includes('idf.il') &&
+                                    !memorialUrl.includes('laad.btl.gov.il') &&
+                                    !memorialUrl.includes('lezichram.police.gov.il') &&
+                                    !memorialUrl.includes('shabak.gov.il') &&
+                                    !memorialUrl.includes('izkor.gov.il'))) {
+                                return true;
+                            }
+                        } else if (memorialUrl.includes(site)) {
+                            return true;
+                        }
+                    }
+                    return false;
                 });
 
                 // Store filter states for each column
