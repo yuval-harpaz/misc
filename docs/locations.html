@@ -149,8 +149,8 @@
             text-align: right;
         }
 
-        .hide-tooltips .red-tooltip,
-        .hide-tooltips .blue-tooltip {
+        .hide-tooltips .red-tooltip:not(.force-visible),
+        .hide-tooltips .blue-tooltip:not(.force-visible) {
             display: none;
         }
     </style>
@@ -258,6 +258,22 @@
                 });
                 console.log('Added polygon to Areas layer');
             }
+            function isIsolated(targetLatLng) {
+                for (let j = 0; j < geojsonData.features.length; j++) {
+                    const other = geojsonData.features[j];
+                    if (other.geometry.type !== 'Point') continue;
+                    // GeoJSON is [lon, lat]
+                    const otherLat = other.geometry.coordinates[1];
+                    const otherLng = other.geometry.coordinates[0];
+                    const otherLatLng = L.latLng(otherLat, otherLng);
+                    const dist = targetLatLng.distanceTo(otherLatLng);
+                    if (dist > 0.5 && dist <= 250) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
             var Killed = L.layerGroup()
             var Kidnapped = L.layerGroup()
             for (let i = 0; i < geojsonData['features'].length; i++) {
@@ -268,10 +284,14 @@
                 const coords = [feat['geometry']['coordinates'][1], feat['geometry']['coordinates'][0]];
                 if (event === "killed") {
                     const marker = L.marker(coords, { icon: redIcon })
+                    const markerLatLng = L.latLng(coords);
+                    const isolated = isIsolated(markerLatLng);
+                    const extraClass = isolated ? ' force-visible' : '';
+
                     marker.bindTooltip(feat['properties'].name, {
                         permanent: true,
                         direction: 'right',
-                        className: 'red-tooltip'
+                        className: 'red-tooltip' + extraClass
                     });
                     marker.bindPopup(feat['properties'].place_name + '<br>' + '<a href="' + feat['properties'].link + '" target="_blank">' + feat['properties'].link_text + '</a>');
                     marker.addTo(Killed)
@@ -286,10 +306,14 @@
                     });
                 } else if (event === "kidnapped") {
                     const marker = L.marker(coords, { icon: blueIcon })
+                    const markerLatLng = L.latLng(coords);
+                    const isolated = isIsolated(markerLatLng);
+                    const extraClass = isolated ? ' force-visible' : '';
+
                     marker.bindTooltip(feat['properties'].name, {
                         permanent: true,
                         direction: 'left',
-                        className: 'blue-tooltip'
+                        className: 'blue-tooltip' + extraClass
                     });
                     marker.bindPopup(feat['properties'].place_name + '<br>' + '<a href="' + feat['properties'].link + '" target="_blank">' + feat['properties'].link_text + '</a>');
                     marker.addTo(Kidnapped)
