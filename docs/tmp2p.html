@@ -1,163 +1,175 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <title>Oct 7 locations</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""/>
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""></script>
-    <link rel="icon" href="https://github.com/yuval-harpaz/alarms/blob/master/docs/logo.png?raw=true" type="image/x-icon"/>
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="icon" href="https://github.com/yuval-harpaz/alarms/blob/master/docs/logo.png?raw=true"
+        type="image/x-icon" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-    #map{
-        height: 100vh;
-        width: 100vw;
-    }
-    #popup-message {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.95);
-      padding: 12px 18px;
-      border-radius: 8px;
-      font-size: 1.2em;
-      font-weight: 500;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 1000;
-      direction: rtl;
-      text-align: center;
-      max-width: 400px;
-      border: 2px solid #007bff;
-    }
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
 
-    #popup-message .close-btn {
-      position: absolute;
-      top: 5px;
-      right: 8px;
-      background: none;
-      border: none;
-      font-size: 1.5em;
-      cursor: pointer;
-      color: #666;
-      line-height: 1;
-    }
+        #popup-message {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            direction: rtl;
+            text-align: center;
+            max-width: 400px;
+            border: 2px solid #007bff;
+        }
 
-    #popup-message .close-btn:hover {
-      color: #000;
-    }
+        #popup-message .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #666;
+            line-height: 1;
+        }
 
-    #popup-message a {
-      display: inline;
-      font-size: 0.8em;
-      color: #007bff;
-      text-decoration: none;
-    }
-    
-    #popup-message p {
-      font-size: 0.7em;
-      color: #333;
-      margin: 8px 0;
-      line-height: 1.3;
-    }
-    
-    #popup-message a:hover {
-      text-decoration: underline;
-    }
-    
-    #search-box {
-      position: absolute;
-      top: 60px;
-      left: 10px;
-      background: white;
-      padding: 10px;
-      border-radius: 5px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-      z-index: 1000;
-      width: 250px;
-    }
-    
-    #search-input {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-      direction: rtl;
-      box-sizing: border-box;
-    }
-    
-    #search-results {
-      max-height: 300px;
-      overflow-y: auto;
-      margin-top: 5px;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      display: none;
-    }
-    
-    .search-result-item {
-      padding: 8px;
-      cursor: pointer;
-      border-bottom: 1px solid #eee;
-      direction: rtl;
-      text-align: right;
-    }
-    
-    .search-result-item:hover {
-      background: #f0f0f0;
-    }
-    
-    .search-result-item:last-child {
-      border-bottom: none;
-    }
-    .leaflet-tooltip-left:before {
-        right: 0;
-        margin-right: -12px;
-        border-left-color: transparent;
-    }
-    .leaflet-tooltip-right:before {
-        left: 0;
-        margin-left: -12px;
-        border-right-color: transparent;
-    }
-    .red-tooltip {
-        background: transparent;
-        box-shadow: none;
-        border: transparent;
-        color: red;
-        font-weight: bold;
-        font-size: 18px;
-        line-height: 16px;
-    }
-    .blue-tooltip {
-        background: transparent;
-        box-shadow: none;
-        border: transparent;
-        color: blue;
-        font-weight: bold;
-        font-size: 18px;
-        line-height: 16px;
-        text-align: right;
-    }
+        #popup-message .close-btn:hover {
+            color: #000;
+        }
+
+        #popup-message a {
+            display: inline;
+            font-size: 0.8em;
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        #popup-message p {
+            font-size: 0.7em;
+            color: #333;
+            margin: 8px 0;
+            line-height: 1.3;
+        }
+
+        #popup-message a:hover {
+            text-decoration: underline;
+        }
+
+        #search-box {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            width: 250px;
+        }
+
+        #search-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            direction: rtl;
+            box-sizing: border-box;
+        }
+
+        #search-results {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 5px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .search-result-item {
+            padding: 8px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            direction: rtl;
+            text-align: right;
+        }
+
+        .search-result-item:hover {
+            background: #f0f0f0;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .leaflet-tooltip-left:before {
+            right: 0;
+            margin-right: -12px;
+            border-left-color: transparent;
+        }
+
+        .leaflet-tooltip-right:before {
+            left: 0;
+            margin-left: -12px;
+            border-right-color: transparent;
+        }
+
+        .red-tooltip {
+            background: transparent;
+            box-shadow: none;
+            border: transparent;
+            color: red;
+            font-weight: bold;
+            font-size: 18px;
+            line-height: 16px;
+        }
+
+        .blue-tooltip {
+            background: transparent;
+            box-shadow: none;
+            border: transparent;
+            color: blue;
+            font-weight: bold;
+            font-size: 18px;
+            line-height: 16px;
+            text-align: right;
+        }
+
+        .hide-tooltips .red-tooltip:not(.force-visible),
+        .hide-tooltips .blue-tooltip:not(.force-visible) {
+            display: none;
+        }
     </style>
 </head>
+
 <body>
     <div id="popup-message">
-      <button class="close-btn" onclick="document.getElementById('popup-message').style.display='none'">&times;</button>
-      מפת מיקומים של אירועי שבעה באוקטובר<br>
-      <p>
-      המפה כוללת מיקומים של אירועי רצח, חטיפה ונפילה בקרב של קורבנות שבעה באוקטובר.<br>
-      פרטים נוספים באתר 
-      </p><a href="https://oct7database.com/locations_intro.html" target="_blank">oct7database.com</a>
+        <button class="close-btn"
+            onclick="document.getElementById('popup-message').style.display='none'">&times;</button>
+        מפת מיקומים של אירועי שבעה באוקטובר<br>
+        <p>
+            המפה כוללת מיקומים של אירועי רצח, חטיפה ונפילה בקרב של קורבנות שבעה באוקטובר.<br>
+            פרטים נוספים באתר
+        </p><a href="https://oct7database.com/locations_intro.html" target="_blank">oct7database.com</a>
     </div>
-    
+
     <div id="search-box">
-      <input type="text" id="search-input" placeholder="חיפוש לפי שם או מקום...">
-      <div id="search-results"></div>
+        <input type="text" id="search-input" placeholder="חיפוש לפי שם או מקום...">
+        <div id="search-results"></div>
     </div>
     <div id="map">
         <script type="module">
@@ -175,18 +187,18 @@
                 popupAnchor: [0, 0] // Position of the popup relative to the icon
             });
             const esri = L.tileLayer(
-            "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/49849/{z}/{y}/{x}",
-            {
-                attribution: "Esri, Maxar, Earthstar Geographics",
-                maxNativeZoom: 18,
-                maxZoom: 21,
-                minZoom: 0,
-                noWrap: false
-            }
+                "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/49849/{z}/{y}/{x}",
+                {
+                    attribution: "Esri, Maxar, Earthstar Geographics",
+                    maxNativeZoom: 18,
+                    maxZoom: 21,
+                    minZoom: 0,
+                    noWrap: false
+                }
             );
             const esriLatest = L.tileLayer(
                 "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                {"attribution": "Esri", "detectRetina": false, "maxNativeZoom": 18, "maxZoom": 21, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
+                { "attribution": "Esri", "detectRetina": false, "maxNativeZoom": 18, "maxZoom": 21, "minZoom": 0, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false }
             )
             const govmap = L.tileLayer('https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png', {
                 maxZoom: 15,
@@ -206,35 +218,35 @@
             var geojsonData = {
                 "type": "FeatureCollection",
                 "features": [
-                  {
-                   "type": "Feature",
-                   "properties": {"name": "Gracie Red", "event": "killed"},
-                   "geometry": {
-                      "type": "Point",
-                      "coordinates": [34.48899, 31.425145]
-                     }
-                  }, 
-                  {
-                   "type": "Feature",
-                   "properties": {"name": "Gracie Blue", "event": "kidnapped"},
-                   "geometry": {
-                      "type": "Point",
-                      "coordinates": [34.48899, 31.425145]
-                     }
-                   },
-                   {
-                   "type": "Feature",
-                   "properties": {"place_name": "בארי; אשלים", "details": "kidnapped: kid1, kid2<br>killed: kil3, kil4"},
-                   "geometry": {
-                     "type": "Polygon",
-                     "coordinates": [[[34.494458, 31.422754], [34.49331, 31.4236], [34.491937, 31.422369], [34.492189, 31.42198], [34.492516, 31.421096], [34.494458, 31.422754]]]
-                     }
-                  }
+                    {
+                        "type": "Feature",
+                        "properties": { "name": "Gracie Red", "event": "killed" },
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [34.48899, 31.425145]
+                        }
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": { "name": "Gracie Blue", "event": "kidnapped" },
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [34.48899, 31.425145]
+                        }
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": { "place_name": "בארי; אשלים", "details": "kidnapped: kid1, kid2<br>killed: kil3, kil4" },
+                        "geometry": {
+                            "type": "Polygon",
+                            "coordinates": [[[34.494458, 31.422754], [34.49331, 31.4236], [34.491937, 31.422369], [34.492189, 31.42198], [34.492516, 31.421096], [34.494458, 31.422754]]]
+                        }
+                    }
                 ]
-              };
+            };
             var Areas = L.layerGroup()
             var allFeatures = []; // Store all features with their layer objects
-            
+
             for (let i = 0; i < geojsonData['features'].length; i++) {
                 const feat = geojsonData['features'][i];
                 if (feat['geometry']['type'] !== 'Polygon') continue;
@@ -242,12 +254,14 @@
                 // Convert coordinates from [lng, lat] to [lat, lng] for Leaflet
                 const coords = feat['geometry']['coordinates'][0].map(coord => [coord[1], coord[0]]);
                 console.log('Converted coordinates:', coords);
-                const pol = L.polygon(coords, { fillColor: '#ff69b4',
-                        weight: 2,
-                        opacity: 1,
-                        color: '#ff1493',
-                        dashArray: '3',
-                        fillOpacity: 0.3})
+                const pol = L.polygon(coords, {
+                    fillColor: '#ff69b4',
+                    weight: 2,
+                    opacity: 1,
+                    color: '#ff1493',
+                    dashArray: '3',
+                    fillOpacity: 0.3
+                })
                 console.log('Created polygon:', pol);
                 pol.bindPopup('<div dir="rtl" style="text-align: right;">' + feat['properties'].place_name + '<br>' + feat['properties'].details + '</div>');
                 pol.addTo(Areas);
@@ -261,6 +275,32 @@
                 });
                 console.log('Added polygon to Areas layer');
             }
+            function isIsolated(targetLatLng) {
+                for (let j = 0; j < geojsonData.features.length; j++) {
+                    const other = geojsonData.features[j];
+                    if (other.geometry.type !== 'Point') continue;
+                    const otherLat = other.geometry.coordinates[1];
+                    const otherLng = other.geometry.coordinates[0];
+                    const otherLatLng = L.latLng(otherLat, otherLng);
+                    const dist = targetLatLng.distanceTo(otherLatLng);
+                    if (dist > 0.5 && dist <= 250) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            function updateTooltipVisibility() {
+                const zoom = map.getZoom();
+                if (zoom <= 16) {
+                    map.getContainer().classList.add('hide-tooltips');
+                } else {
+                    map.getContainer().classList.remove('hide-tooltips');
+                }
+            }
+            map.on('zoomend', updateTooltipVisibility);
+            updateTooltipVisibility();
+
             var Killed = L.layerGroup()
             var Kidnapped = L.layerGroup()
             for (let i = 0; i < geojsonData['features'].length; i++) {
@@ -271,10 +311,13 @@
                 const coords = [feat['geometry']['coordinates'][1], feat['geometry']['coordinates'][0]];
                 if (event === "killed") {
                     const marker = L.marker(coords, { icon: redIcon })
+                    const markerLatLng = L.latLng(coords);
+                    const isolated = isIsolated(markerLatLng);
+                    const extraClass = isolated ? ' force-visible' : '';
                     marker.bindTooltip(feat['properties'].name, {
                         permanent: true,
                         direction: 'right',
-                        className: 'red-tooltip'
+                        className: 'red-tooltip' + extraClass
                     });
                     marker.bindPopup(feat['properties'].place_name + '<br>' + '<a href="' + feat['properties'].link + '" target="_blank">' + feat['properties'].link_text + '</a>');
                     marker.addTo(Killed)
@@ -289,10 +332,13 @@
                     });
                 } else if (event === "kidnapped") {
                     const marker = L.marker(coords, { icon: blueIcon })
+                    const markerLatLng = L.latLng(coords);
+                    const isolated = isIsolated(markerLatLng);
+                    const extraClass = isolated ? ' force-visible' : '';
                     marker.bindTooltip(feat['properties'].name, {
                         permanent: true,
                         direction: 'left',
-                        className: 'blue-tooltip'
+                        className: 'blue-tooltip' + extraClass
                     });
                     marker.bindPopup(feat['properties'].place_name + '<br>' + '<a href="' + feat['properties'].link + '" target="_blank">' + feat['properties'].link_text + '</a>');
                     marker.addTo(Kidnapped)
@@ -305,7 +351,7 @@
                         feature: feat,
                         pid: feat['properties']['pid']
                     });
-                }  else {
+                } else {
                     console.log('Unknown event: ', event)
                 }
             }
@@ -332,11 +378,11 @@
                     window.prompt("Copy to clipboard: Ctrl+C, Enter", coords);
                 });
             });
-            
+
             // Search functionality
             const searchInput = document.getElementById('search-input');
             const searchResults = document.getElementById('search-results');
-            
+
             // Function to normalize text for searching
             function normalizeText(text) {
                 if (!text) return '';
@@ -347,18 +393,18 @@
                     .replace(/[^\u0590-\u05FF\u0600-\u06FF\w\s]/g, '') // Keep Hebrew, Arabic, alphanumeric and spaces
                     .toLowerCase();
             }
-            
-            searchInput.addEventListener('input', function() {
+
+            searchInput.addEventListener('input', function () {
                 const query = this.value.trim();
-                
+
                 if (query.length < 2) {
                     searchResults.style.display = 'none';
                     searchResults.innerHTML = '';
                     return;
                 }
-                
+
                 const normalizedQuery = normalizeText(query);
-                
+
                 // Filter features by name, place, or details
                 const matches = allFeatures.filter(item => {
                     const normalizedName = normalizeText(item.name);
@@ -369,21 +415,21 @@
                     const detailsMatch = normalizedDetails.includes(normalizedQuery);
                     return nameMatch || placeMatch || detailsMatch;
                 });
-                
+
                 if (matches.length === 0) {
                     searchResults.style.display = 'none';
                     searchResults.innerHTML = '';
                     return;
                 }
-                
+
                 // Display results
                 searchResults.innerHTML = '';
                 searchResults.style.display = 'block';
-                
+
                 matches.forEach(item => {
                     const div = document.createElement('div');
                     div.className = 'search-result-item';
-                    
+
                     if (item.type === 'polygon') {
                         // For polygons, try to find the specific matched name
                         let matchedName = '';
@@ -407,7 +453,7 @@
                                 if (matchedName) break;
                             }
                         }
-                        
+
                         if (matchedName) {
                             div.textContent = `${matchedName} - ${item.name}`;
                         } else {
@@ -417,43 +463,43 @@
                         const displayName = item.name.replace(/<br>/g, '; ');
                         div.textContent = `${displayName} - ${item.place}`;
                     }
-                    
-                    div.addEventListener('click', function() {
+
+                    div.addEventListener('click', function () {
                         // Focus on the selected feature
                         if (item.type === 'polygon') {
                             map.fitBounds(item.layer.getBounds());
                         } else {
                             map.setView(item.layer.getLatLng(), 17);
                         }
-                        
+
                         // Open popup
                         item.layer.openPopup();
-                        
+
                         // Clear search
                         searchInput.value = '';
                         searchResults.style.display = 'none';
                         searchResults.innerHTML = '';
                     });
-                    
+
                     searchResults.appendChild(div);
                 });
             });
-            
+
             // Close search results when clicking outside
-            document.addEventListener('click', function(event) {
+            document.addEventListener('click', function (event) {
                 if (!document.getElementById('search-box').contains(event.target)) {
                     searchResults.style.display = 'none';
                 }
             });
-            
+
             // PID URL parameter functionality
             function focusOnPid(pidToFind) {
                 if (!pidToFind) return;
-                
+
                 // Search through all features
                 for (let item of allFeatures) {
                     if (!item.pid) continue;
-                    
+
                     // Check if pid matches (handle comma-separated pids)
                     const pids = item.pid.toString().split(',').map(p => p.trim());
                     if (pids.includes(pidToFind.toString())) {
@@ -466,24 +512,24 @@
                         } else {
                             map.setView(item.layer.getLatLng(), 17);
                         }
-                        
+
                         // Open popup
                         item.layer.openPopup();
-                        
+
                         return true; // Found and focused
                     }
                 }
-                
+
                 return false; // Not found
             }
-            
+
             // Check URL for pid parameter
             const urlParams = new URLSearchParams(window.location.search);
             const pidParam = urlParams.get('pid');
             if (pidParam) {
                 // Hide welcome popup when pid is in URL
                 document.getElementById('popup-message').style.display = 'none';
-                
+
                 // Small delay to ensure map is fully loaded
                 setTimeout(() => {
                     focusOnPid(pidParam);
@@ -493,5 +539,5 @@
     </div>
 </body>
 <!-- comment -->
-</html>
 
+</html>
