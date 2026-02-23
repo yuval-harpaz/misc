@@ -496,13 +496,16 @@
             function focusOnPid(pidToFind) {
                 if (!pidToFind) return;
 
+                // Normalize searches by removing .0 suffix and trimming
+                const normalizedSearch = pidToFind.toString().trim().replace(/\.0$/, '');
+
                 // Search through all features
                 for (let item of allFeatures) {
                     if (!item.pid) continue;
 
-                    // Check if pid matches (handle comma-separated pids)
-                    const pids = item.pid.toString().split(',').map(p => p.trim());
-                    if (pids.includes(pidToFind.toString())) {
+                    // Check if pid matches (handle comma-separated pids, normalization)
+                    const pids = item.pid.toString().split(',').map(p => p.trim().replace(/\.0$/, ''));
+                    if (pids.includes(normalizedSearch)) {
                         // Focus on the feature
                         if (item.type === 'polygon') {
                             // Calculate center of polygon
