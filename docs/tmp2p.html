@@ -616,7 +616,7 @@
                         // Add a temporary marker
                         if (tempMarker) map.removeLayer(tempMarker);
                         tempMarker = L.marker([lat, lon]).addTo(map)
-                            .bindPopup(`Jumped to: ${lat.toFixed(5)}, ${lon.toFixed(5)}`)
+                            .bindPopup(`${lat.toFixed(5)}, ${lon.toFixed(5)}`)
                             .openPopup();
 
                         coordJumpBox.style.display = 'none';
