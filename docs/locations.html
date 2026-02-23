@@ -153,6 +153,38 @@
         .hide-tooltips .blue-tooltip:not(.force-visible) {
             display: none;
         }
+
+        #coord-jump-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            z-index: 2000;
+            display: none;
+            width: 300px;
+            text-align: center;
+        }
+
+        #coord-input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .coord-label {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 5px;
+            display: block;
+        }
     </style>
 </head>
 
@@ -170,6 +202,11 @@
     <div id="search-box">
         <input type="text" id="search-input" placeholder="חיפוש לפי שם או מקום...">
         <div id="search-results"></div>
+    </div>
+
+    <div id="coord-jump-box">
+        <label class="coord-label">Enter coordinates (lat, lon):</label>
+        <input type="text" id="coord-input" placeholder="31.xxx, 34.yyy">
     </div>
     <div id="map">
         <script type="module">
@@ -510,6 +547,64 @@ var Areas = L.layerGroup()
                     focusOnPid(pidParam);
                 }, 500);
             }
+
+            // Coordinate Jump Feature (Ctrl+G)
+            const coordJumpBox = document.getElementById('coord-jump-box');
+            const coordInput = document.getElementById('coord-input');
+            let tempMarker = null;
+
+            document.addEventListener('keydown', function (e) {
+                if (e.ctrlKey && e.key === 'g') {
+                    e.preventDefault();
+                    coordJumpBox.style.display = coordJumpBox.style.display === 'block' ? 'none' : 'block';
+                    if (coordJumpBox.style.display === 'block') {
+                        coordInput.focus();
+                    }
+                }
+                if (e.key === 'Escape') {
+                    coordJumpBox.style.display = 'none';
+                }
+            });
+
+            coordInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    const val = coordInput.value.trim();
+                    if (!val) return;
+
+                    // Parse coordinates: split by comma or space
+                    let parts = val.split(/[,\s]+/).map(p => parseFloat(p)).filter(p => !isNaN(p));
+
+                    if (parts.length >= 2) {
+                        let lat = parts[0];
+                        let lon = parts[1];
+
+                        // If first number is larger than second, switch (assuming Israel lat ~31, lon ~34)
+                        if (Math.abs(lat) > Math.abs(lon)) {
+                            [lat, lon] = [lon, lat];
+                        }
+
+                        map.setView([lat, lon], 17);
+
+                        // Add a temporary marker
+                        if (tempMarker) map.removeLayer(tempMarker);
+                        tempMarker = L.marker([lat, lon]).addTo(map)
+                            .bindPopup(`Jumped to: ${lat.toFixed(5)}, ${lon.toFixed(5)}`)
+                            .openPopup();
+
+                        coordJumpBox.style.display = 'none';
+                        coordInput.value = '';
+                    } else {
+                        alert("Invalid format. Please use 'lat, lon' or 'lat lon'");
+                    }
+                }
+            });
+
+            // Close jump box when clicking outside
+            document.addEventListener('mousedown', function (e) {
+                if (coordJumpBox.style.display === 'block' && !coordJumpBox.contains(e.target)) {
+                    coordJumpBox.style.display = 'none';
+                }
+            });
         </script>
     </div>
 </body>
