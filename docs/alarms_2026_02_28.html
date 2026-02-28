@@ -11,6 +11,7 @@
     <style>
         body { margin: 0; padding: 0; }
         #map { height: 100vh; width: 100vw; }
+
         #floating-title {
             position: absolute;
             top: 10px;
@@ -35,12 +36,73 @@
             margin-top: 2px;
         }
         #floating-title a:hover { text-decoration: underline; }
+
+        /* Search box */
+        #search-container {
+            position: absolute;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 220px;
+            direction: rtl;
+        }
+        #search-input {
+            width: 100%;
+            padding: 6px 10px;
+            font-size: 1em;
+            border-radius: 6px;
+            border: 1px solid #aaa;
+            box-shadow: 0 0 4px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+            direction: rtl;
+        }
+        #autocomplete-list {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 0 0 6px 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .autocomplete-item {
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 0.95em;
+            direction: rtl;
+        }
+        .autocomplete-item:hover, .autocomplete-item.selected {
+            background: #e8f0fe;
+        }
+
+        /* Popup times list */
+        .alarm-popup {
+            direction: rtl;
+            text-align: right;
+            font-size: 1em;
+            max-height: 260px;
+            overflow-y: auto;
+            min-width: 160px;
+        }
+        .alarm-popup h4 {
+            margin: 0 0 6px 0;
+            font-size: 1.1em;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 4px;
+        }
+        .alarm-popup .alarm-time {
+            padding: 1px 0;
+            font-size: 0.95em;
+            color: #222;
+        }
+
         .leaflet-control-attribution {
             background: transparent !important;
             font-size: 13px;
             color: black;
             text-shadow: 0 0 3px white;
         }
+        .leaflet-popup-content { margin: 10px 14px; }
     </style>
 </head>
 <body>
@@ -48,6 +110,12 @@
     אזעקות מ-28 בפברואר 2026
     <a href="https://oct7database.com" target="_blank">oct7database.com</a>
 </div>
+
+<div id="search-container">
+    <input id="search-input" type="text" placeholder="חיפוש יישוב..." autocomplete="off" />
+    <div id="autocomplete-list"></div>
+</div>
+
 <div id="map"></div>
 
 <script>
@@ -58,6 +126,15 @@
     function parseDate(str) {
         if (!str) return null;
         return new Date(str.replace(' ', 'T'));
+    }
+
+    function formatTime(dateObj) {
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        const mo = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const y = dateObj.getFullYear();
+        const h = String(dateObj.getHours()).padStart(2, '0');
+        const mi = String(dateObj.getMinutes()).padStart(2, '0');
+        return `${d}/${mo}/${y} ${h}:${mi}`;
     }
 
     async function fetchCSV(filename) {
@@ -72,6 +149,15 @@
         });
     }
 
+    function buildPopupContent(loc, timeStrings) {
+        let html = `<div class="alarm-popup"><h4>${loc} — ${timeStrings.length} אזעקות</h4>`;
+        timeStrings.forEach(t => {
+            html += `<div class="alarm-time">🔴 ${t}</div>`;
+        });
+        html += '</div>';
+        return html;
+    }
+
     async function initMap() {
         const [coord, alarms] = await Promise.all([
             fetchCSV('data/coord.csv'),
@@ -80,7 +166,6 @@
 
         const map = L.map('map').setView([31.5, 34.75], 8);
 
-        // govmap tile layer (from rockets_victims.html)
         L.tileLayer('https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png', {
             attribution: '© המרכז למיפוי ישראל www.govmap.gov.il',
             maxZoom: 18
@@ -96,7 +181,7 @@
             }
         });
 
-        // Filter alarms to TARGET_DATE only, threat === 0
+        // Filter alarms to date range, threat === 0
         const dayAlarms = alarms.filter(a => {
             const d = parseDate(a.time);
             if (!d || isNaN(d)) return false;
@@ -104,35 +189,109 @@
             return dateStr >= DATE_FROM && dateStr <= DATE_TO && a.threat === 0;
         });
 
-        // Aggregate counts per location
-        const locs = {};
+        // Aggregate times per location (sorted)
+        const locTimes = {};
         dayAlarms.forEach(a => {
             const city = a.cities;
             if (!city) return;
-            if (!locs[city]) locs[city] = 0;
-            locs[city]++;
+            if (!locTimes[city]) locTimes[city] = [];
+            const d = parseDate(a.time);
+            if (d) locTimes[city].push(d);
+        });
+        Object.keys(locTimes).forEach(loc => {
+            locTimes[loc].sort((a, b) => a - b);
         });
 
-        let markerCount = 0;
-        Object.entries(locs).forEach(([loc, count]) => {
+        // Build markers
+        const markerMap = {};
+
+        Object.entries(locTimes).forEach(([loc, times]) => {
             const coords = coordMap[loc];
-            if (coords) {
-                L.circleMarker(coords, {
-                    radius: Math.max(Math.sqrt(count) * 2, 3),
-                    fillColor: '#000000',
-                    color: '#000000',
-                    weight: 1,
-                    opacity: 0.8,
-                    fillOpacity: 0.6
-                }).bindTooltip(`<div dir="rtl">${loc}: ${count} אזעקות</div>`, { direction: 'top' })
-                  .addTo(map);
-                markerCount++;
-            } else {
-                console.warn('No coordinates for:', loc);
-            }
+            if (!coords) { console.warn('No coordinates for:', loc); return; }
+
+            const count = times.length;
+            const timeStrings = times.map(formatTime);
+            const popupContent = buildPopupContent(loc, timeStrings);
+
+            const marker = L.circleMarker(coords, {
+                radius: Math.max(Math.sqrt(count) * 2, 3),
+                fillColor: '#000000',
+                color: '#000000',
+                weight: 1,
+                opacity: 0.8,
+                fillOpacity: 0.6
+            }).bindPopup(popupContent, { maxWidth: 280, maxHeight: 340 }).addTo(map);
+
+            markerMap[loc] = marker;
         });
 
-        if (markerCount === 0) {
+        // ---- Autocomplete search ----
+        const allLocs = Object.keys(markerMap).sort();
+        const searchInput = document.getElementById('search-input');
+        const autocompleteList = document.getElementById('autocomplete-list');
+        let selectedIndex = -1;
+
+        function showSuggestions(query) {
+            autocompleteList.innerHTML = '';
+            selectedIndex = -1;
+            if (!query) return;
+            const matches = allLocs.filter(loc => loc.includes(query));
+            matches.slice(0, 10).forEach(loc => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.textContent = loc;
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault(); // prevent input blur before click fires
+                    selectLocation(loc);
+                });
+                autocompleteList.appendChild(item);
+            });
+        }
+
+        function selectLocation(loc) {
+            searchInput.value = loc;
+            autocompleteList.innerHTML = '';
+            const marker = markerMap[loc];
+            if (marker) {
+                const latlng = marker.getLatLng();
+                map.setView(latlng, 13);
+                marker.openPopup();
+            }
+        }
+
+        searchInput.addEventListener('input', () => {
+            showSuggestions(searchInput.value.trim());
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            const items = autocompleteList.querySelectorAll('.autocomplete-item');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+            } else if (e.key === 'Enter') {
+                if (selectedIndex >= 0 && items[selectedIndex]) {
+                    selectLocation(items[selectedIndex].textContent);
+                } else if (items.length > 0) {
+                    selectLocation(items[0].textContent);
+                }
+                return;
+            } else if (e.key === 'Escape') {
+                autocompleteList.innerHTML = '';
+                return;
+            }
+            items.forEach((el, i) => el.classList.toggle('selected', i === selectedIndex));
+        });
+
+        searchInput.addEventListener('blur', () => {
+            setTimeout(() => { autocompleteList.innerHTML = ''; }, 150);
+        });
+
+        map.on('click', () => { autocompleteList.innerHTML = ''; });
+
+        if (Object.keys(markerMap).length === 0) {
             L.popup()
                 .setLatLng([31.5, 34.75])
                 .setContent('לא נמצאו אזעקות בתאריך זה.')
