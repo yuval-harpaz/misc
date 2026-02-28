@@ -195,6 +195,12 @@
                 fetchCSV('data/alarms.csv')
             ]);
 
+            // Hide title if ?notitle is in URL
+            if (new URLSearchParams(window.location.search).has('notitle')) {
+                const title = document.getElementById('floating-title');
+                if (title) title.style.display = 'none';
+            }
+
             const map = L.map('map').setView([31.5, 34.75], 8);
 
             L.tileLayer('https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png', {
