@@ -227,28 +227,31 @@
 
         const maxCount = Math.max(...locDataArr.map(d => d.count), 1);
 
-        // Pastel cyan → pastel yellow → pastel red ramp
-        // Mix saturated hue with white (pastel = lerp toward white)
+        // Dark blue → blue → cyan → green-yellow → orange → dark red
+        // No white/cream stop so mid-range values stay visibly colored
         function countToColor(count) {
-            const v = count / maxCount;
-            const pastel = 0.45; // how much white to mix in (0=vivid, 1=white)
-            let r, g, b;
-            if (v < 0.5) {
-                const t = v / 0.5;
-                r = Math.round(255 * t);
-                g = 255;
-                b = Math.round(255 * (1 - t));
-            } else {
-                const t = (v - 0.5) / 0.5;
-                r = 255;
-                g = Math.round(255 * (1 - t));
-                b = 0;
+            const v = count / maxCount; // [0, 1]
+            const stops = [
+                [0.00, [ 20,  40, 160]],  // dark blue
+                [0.20, [ 50, 130, 220]],  // medium blue
+                [0.38, [ 60, 200, 210]],  // cyan
+                [0.55, [100, 200,  80]],  // green
+                [0.70, [255, 220,  50]],  // yellow
+                [0.85, [240, 100,  20]],  // orange
+                [1.00, [150,  15,  15]],  // dark red
+            ];
+            for (let i = 1; i < stops.length; i++) {
+                const [t0, c0] = stops[i - 1];
+                const [t1, c1] = stops[i];
+                if (v <= t1) {
+                    const t = (v - t0) / (t1 - t0);
+                    const r = Math.round(c0[0] + t * (c1[0] - c0[0]));
+                    const g = Math.round(c0[1] + t * (c1[1] - c0[1]));
+                    const b = Math.round(c0[2] + t * (c1[2] - c0[2]));
+                    return `rgb(${r},${g},${b})`;
+                }
             }
-            // Mix with white for pastel effect
-            r = Math.round(r + (255 - r) * pastel);
-            g = Math.round(g + (255 - g) * pastel);
-            b = Math.round(b + (255 - b) * pastel);
-            return `rgb(${r},${g},${b})`;
+            return `rgb(160,20,20)`;
         }
 
         // Draw colored circles sorted small→large so larger (redder) circles render on top
