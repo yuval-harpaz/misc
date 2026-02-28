@@ -55,36 +55,37 @@
             padding: 7px 12px;
             font-size: 1em;
             border-radius: 8px;
-            border: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             box-sizing: border-box;
             direction: rtl;
-            background: rgba(10,10,20,0.82);
-            color: #fff;
+            background: rgba(255,255,255,0.92);
+            color: #222;
             backdrop-filter: blur(4px);
             outline: none;
         }
-        #search-input::placeholder { color: #aaa; }
-        #search-input:focus { box-shadow: 0 2px 12px rgba(100,180,255,0.4); }
+        #search-input::placeholder { color: #888; }
+        #search-input:focus { box-shadow: 0 2px 12px rgba(60,120,220,0.3); border-color: #88b; }
 
         #autocomplete-list {
-            background: rgba(15,15,30,0.95);
-            border: 1px solid #334;
+            background: rgba(255,255,255,0.97);
+            border: 1px solid #ccc;
+            border-top: none;
             border-radius: 0 0 8px 8px;
             max-height: 200px;
             overflow-y: auto;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .autocomplete-item {
             padding: 7px 12px;
             cursor: pointer;
             font-size: 0.95em;
             direction: rtl;
-            color: #dde;
+            color: #222;
         }
         .autocomplete-item:hover, .autocomplete-item.selected {
-            background: rgba(80,130,255,0.25);
-            color: #fff;
+            background: rgba(60,120,220,0.12);
+            color: #111;
         }
 
         .alarm-popup {
@@ -280,13 +281,14 @@
         colorbar.onAdd = function() {
             const div = L.DomUtil.create('div');
             div.style.cssText = `
-                background: rgba(10,10,20,0.82); border-radius: 8px; padding: 8px 10px;
-                color: #fff; font-size: 11px; backdrop-filter: blur(4px);
-                box-shadow: 0 2px 8px rgba(0,0,0,0.4); direction: rtl; text-align: right;
+                background: rgba(255,255,255,0.92); border-radius: 8px; padding: 8px 10px;
+                color: #222; font-size: 11px; backdrop-filter: blur(4px);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15); direction: rtl; text-align: right;
                 display: flex; flex-direction: column; align-items: center; gap: 4px;
+                border: 1px solid #ddd;
             `;
             const title = document.createElement('div');
-            title.style.cssText = 'font-size:11px; color:#aac4ff; margin-bottom:2px; white-space:nowrap;';
+            title.style.cssText = 'font-size:11px; color:#445; margin-bottom:2px; white-space:nowrap;';
             title.textContent = 'מספר אזעקות';
 
             const barH = 140, barW = 14;
@@ -305,7 +307,7 @@
             const wrapper = document.createElement('div');
             wrapper.style.cssText = 'display:flex; flex-direction:row; align-items:stretch; gap:4px;';
             const labelsDiv = document.createElement('div');
-            labelsDiv.style.cssText = `display:flex; flex-direction:column; justify-content:space-between; height:${barH}px; font-size:11px; color:#ccc;`;
+            labelsDiv.style.cssText = `display:flex; flex-direction:column; justify-content:space-between; height:${barH}px; font-size:11px; color:#444;`;
             labelsDiv.innerHTML = `<span>${maxCount}</span><span>${Math.round(maxCount/2)}</span><span>0</span>`;
             wrapper.appendChild(bc);
             wrapper.appendChild(labelsDiv);
