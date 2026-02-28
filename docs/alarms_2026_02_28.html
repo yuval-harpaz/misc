@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="logo.png">
+    <title>אזעקות 28.2.2026</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100vw; }
+        #floating-title {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.85);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 1.3em;
+            font-weight: 500;
+            box-shadow: 0 0 4px rgba(0,0,0,0.2);
+            z-index: 1000;
+            direction: rtl;
+            text-align: center;
+            white-space: nowrap;
+        }
+        #floating-title a {
+            display: block;
+            font-size: 0.7em;
+            color: #007bff;
+            text-decoration: none;
+            margin-top: 2px;
+        }
+        #floating-title a:hover { text-decoration: underline; }
+        .leaflet-control-attribution {
+            background: transparent !important;
+            font-size: 13px;
+            color: black;
+            text-shadow: 0 0 3px white;
+        }
+    </style>
+</head>
+<body>
+<div id="floating-title">
+    אזעקות מ-28 בפברואר 2026
+    <a href="https://oct7database.com" target="_blank">oct7database.com</a>
+</div>
+<div id="map"></div>
+
+<script>
+    const GITHUB_RAW = 'https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/';
+    const DATE_FROM = '2026-02-28';
+    const DATE_TO   = '2027-02-28'; // change this upper limit when alarms stop
+
+    function parseDate(str) {
+        if (!str) return null;
+        return new Date(str.replace(' ', 'T'));
+    }
+
+    async function fetchCSV(filename) {
+        const response = await fetch(GITHUB_RAW + filename);
+        const text = await response.text();
+        return new Promise((resolve) => {
+            Papa.parse(text, {
+                header: true,
+                dynamicTyping: true,
+                complete: (results) => resolve(results.data)
+            });
+        });
+    }
+
+    async function initMap() {
+        const [coord, alarms] = await Promise.all([
+            fetchCSV('data/coord.csv'),
+            fetchCSV('data/alarms.csv')
+        ]);
+
+        const map = L.map('map').setView([31.5, 34.75], 8);
+
+        // govmap tile layer (from rockets_victims.html)
+        L.tileLayer('https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png', {
+            attribution: '© המרכז למיפוי ישראל www.govmap.gov.il',
+            maxZoom: 18
+        }).addTo(map);
+
+        // Build coord lookup
+        const coordMap = {};
+        coord.forEach(c => {
+            const lat = Number(c.lat);
+            const lng = Number(c.long);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                coordMap[c.loc] = [lat, lng];
+            }
+        });
+
+        // Filter alarms to TARGET_DATE only, threat === 0
+        const dayAlarms = alarms.filter(a => {
+            const d = parseDate(a.time);
+            if (!d || isNaN(d)) return false;
+            const dateStr = d.toISOString().slice(0, 10);
+            return dateStr >= DATE_FROM && dateStr <= DATE_TO && a.threat === 0;
+        });
+
+        // Aggregate counts per location
+        const locs = {};
+        dayAlarms.forEach(a => {
+            const city = a.cities;
+            if (!city) return;
+            if (!locs[city]) locs[city] = 0;
+            locs[city]++;
+        });
+
+        let markerCount = 0;
+        Object.entries(locs).forEach(([loc, count]) => {
+            const coords = coordMap[loc];
+            if (coords) {
+                L.circleMarker(coords, {
+                    radius: Math.max(Math.sqrt(count) * 2, 3),
+                    fillColor: '#000000',
+                    color: '#000000',
+                    weight: 1,
+                    opacity: 0.8,
+                    fillOpacity: 0.6
+                }).bindTooltip(`<div dir="rtl">${loc}: ${count} אזעקות</div>`, { direction: 'top' })
+                  .addTo(map);
+                markerCount++;
+            } else {
+                console.warn('No coordinates for:', loc);
+            }
+        });
+
+        if (markerCount === 0) {
+            L.popup()
+                .setLatLng([31.5, 34.75])
+                .setContent('לא נמצאו אזעקות בתאריך זה.')
+                .openOn(map);
+        }
+    }
+
+    initMap();
+</script>
+</body>
+</html>
