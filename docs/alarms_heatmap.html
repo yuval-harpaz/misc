@@ -232,6 +232,10 @@
                 white-space: normal;
                 padding: 6px 10px;
             }
+
+            .alarms-colorbar {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -451,7 +455,7 @@
             }
 
             colorbar.onAdd = function () {
-                colorbarDiv = L.DomUtil.create('div');
+                colorbarDiv = L.DomUtil.create('div', 'alarms-colorbar');
                 colorbarDiv.style.cssText = `
                 background: rgba(255,255,255,0.92); border-radius: 8px; padding: 8px 10px;
                 color: #222; font-size: 11px; backdrop-filter: blur(4px);
