@@ -260,6 +260,82 @@
 
   .sep { color: var(--border); }
 
+  /* URL modal */
+  .modal-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 24px 28px;
+    width: min(560px, 92vw);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 0 40px rgba(232,255,79,0.15);
+  }
+  .modal h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0;
+  }
+  .modal input[type=text] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+  }
+  .modal input[type=text]:focus { border-color: var(--accent); }
+  .modal .modal-hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .modal .modal-hint a {
+    color: var(--accent2);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .modal .modal-hint a:hover { text-decoration: underline; }
+  .modal .modal-row { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-error { color: #ff6b6b; font-size: 11px; min-height: 16px; }
+  .loading-bar {
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+  }
+  .loading-bar.active { display: block; }
+  .loading-bar-inner {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s;
+    animation: loadpulse 1.2s ease-in-out infinite;
+  }
+  @keyframes loadpulse {
+    0%   { width: 5%; margin-left: 0; }
+    50%  { width: 40%; margin-left: 30%; }
+    100% { width: 5%; margin-left: 90%; }
+  }
+
   /* scrollbar - thick, visible, high contrast */
   ::-webkit-scrollbar { width: 14px; height: 14px; }
   ::-webkit-scrollbar-track { background: #1a1a1a; border-left: 1px solid #444; }
@@ -276,6 +352,7 @@
 <header>
   <div class="logo">CSV<span>edit</span></div>
   <button class="btn" onclick="document.getElementById('file-input').click()">📂 Open CSV</button>
+  <button class="btn" onclick="openURLModal()">🌐 Open URL</button>
   <input type="file" id="file-input" accept=".csv,text/csv">
 
   <span id="header-actions" style="display:none; display:contents;">
@@ -308,6 +385,21 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="modal-backdrop" id="url-modal-backdrop" onclick="closeURLModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>🌐 Load CSV from URL</h3>
+    <input type="text" id="url-input" placeholder="https://example.com/data.csv" spellcheck="false"
+           onkeydown="if(event.key==='Enter')fetchURL(); if(event.key==='Escape')closeURLModal();">
+    <div class="modal-hint" id="url-hint"></div>
+    <div class="loading-bar" id="url-loading"><div class="loading-bar-inner"></div></div>
+    <div class="modal-error" id="url-error"></div>
+    <div class="modal-row">
+      <button class="btn" onclick="closeURLModal()">Cancel</button>
+      <button class="btn primary" onclick="fetchURL()">Load</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── CSV Parser ────────────────────────────────────────────────────────────────
@@ -852,6 +944,79 @@ document.addEventListener('keydown', e => {
     e.preventDefault(); moveCell(ri, ci, 1);
   }
 });
+
+// ── URL loading ───────────────────────────────────────────────────────────────
+const LS_KEY = 'csvEditor_lastURL';
+
+function openURLModal() {
+  const lastURL = localStorage.getItem(LS_KEY) || '';
+  const input = document.getElementById('url-input');
+  const hint = document.getElementById('url-hint');
+  input.value = lastURL;
+  if (lastURL) {
+    hint.innerHTML = `Last used: <a onclick="document.getElementById('url-input').value=${JSON.stringify(lastURL)};document.getElementById('url-input').focus()">${lastURL}</a>`;
+  } else {
+    hint.innerHTML = 'Paste any publicly accessible CSV URL. For GitHub files, use the raw URL.';
+  }
+  document.getElementById('url-error').textContent = '';
+  document.getElementById('url-loading').classList.remove('active');
+  document.getElementById('url-modal-backdrop').classList.add('open');
+  setTimeout(() => { input.focus(); input.select(); }, 60);
+}
+
+function closeURLModal(e) {
+  if (e && e.target !== document.getElementById('url-modal-backdrop')) return;
+  document.getElementById('url-modal-backdrop').classList.remove('open');
+}
+
+async function fetchURL() {
+  const raw = document.getElementById('url-input').value.trim();
+  if (!raw) return;
+  const errEl = document.getElementById('url-error');
+  const loadEl = document.getElementById('url-loading');
+  errEl.textContent = '';
+  loadEl.classList.add('active');
+
+  // Try direct fetch first, then a CORS proxy
+  const proxies = [
+    url => url,
+    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  ];
+
+  let text = null;
+  let lastErr = '';
+  for (const proxyFn of proxies) {
+    const fetchURL = proxyFn(raw);
+    try {
+      const res = await fetch(fetchURL, { cache: 'no-store' });
+      if (!res.ok) { lastErr = `HTTP ${res.status}: ${res.statusText}`; continue; }
+      text = await res.text();
+      break;
+    } catch (err) {
+      lastErr = err.message;
+    }
+  }
+
+  loadEl.classList.remove('active');
+
+  if (text === null) {
+    errEl.textContent = `Failed to load: ${lastErr}`;
+    return;
+  }
+
+  // strip BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  trailingNewline = text.endsWith('\n') || text.endsWith('\r');
+
+  // derive filename from URL
+  const urlName = raw.split('/').pop().split('?')[0] || 'remote.csv';
+  localStorage.setItem(LS_KEY, raw);
+  fileName = urlName;
+
+  document.getElementById('url-modal-backdrop').classList.remove('open');
+  initFromText(text, urlName + ' (URL)');
+}
 
 // ── Sync horizontal scrollbar ─────────────────────────────────────────────────
 function syncHScrollBar() {
