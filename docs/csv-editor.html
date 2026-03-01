@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSV Editor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #333;
+    --accent: #e8ff4f;
+    --accent2: #4fffb0;
+    --text: #e8e8e8;
+    --text-dim: #777;
+    --danger: #ff4f4f;
+    --cell-hover: #2a2a2a;
+    --cell-edit: #1e2a0e;
+    --new-row: #0e1a2a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 18px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+  }
+  .logo span { color: var(--text-dim); font-weight: 400; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { background: #fff; border-color: #fff; }
+  .btn.accent2 { border-color: var(--accent2); color: var(--accent2); }
+  .btn.accent2:hover { background: var(--accent2); color: #000; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn:disabled:hover { border-color: var(--border); color: var(--text); background: var(--surface2); }
+
+  .spacer { flex: 1; }
+
+  .status-bar {
+    padding: 6px 24px;
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .status-bar .pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 20px;
+    color: var(--text);
+  }
+  .status-bar .pill.warn { border-color: var(--accent); color: var(--accent); }
+
+  #drop-zone {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 60px 24px;
+    text-align: center;
+    transition: background 0.2s;
+  }
+  #drop-zone.drag-over { background: #1a1f00; }
+  #drop-zone .big-icon { font-size: 64px; opacity: 0.3; }
+  #drop-zone h2 { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: var(--accent); }
+  #drop-zone p { color: var(--text-dim); max-width: 400px; line-height: 1.6; }
+  #file-input { display: none; }
+
+  #editor-container {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .table-scroll-outer {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Separate horizontal scrollbar container always pinned at bottom */
+  .hscroll-bar {
+    overflow-x: scroll;
+    overflow-y: hidden;
+    flex-shrink: 0;
+    height: 14px; /* matches scrollbar height */
+  }
+  .hscroll-bar-inner { height: 1px; } /* width set by JS */
+
+  .table-wrap {
+    flex: 1;
+    overflow: scroll;
+    padding: 0;
+    min-height: 0;
+    /* hide native horizontal scrollbar — synced via hscroll-bar */
+  }
+
+  table {
+    border-collapse: collapse;
+    min-width: 100%;
+    table-layout: auto;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #111;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    border-right: 1px solid var(--border);
+    border-bottom: 2px solid var(--accent);
+    white-space: nowrap;
+    user-select: none;
+  }
+  thead th.row-num-header {
+    color: var(--text-dim);
+    min-width: 48px;
+    text-align: center;
+  }
+
+  tbody tr { transition: background 0.1s; }
+  tbody tr:hover td { background: var(--cell-hover); }
+  tbody tr.new-row td { background: #0d1520; }
+  tbody tr.new-row:hover td { background: #111d2e; }
+
+  td {
+    padding: 0;
+    border-right: 1px solid #222;
+    border-bottom: 1px solid #1e1e1e;
+    vertical-align: middle;
+    background: var(--bg);
+    max-width: 320px;
+  }
+  td.row-num {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 10px;
+    padding: 4px 6px;
+    background: var(--surface) !important;
+    border-right: 1px solid var(--border);
+    min-width: 48px;
+    user-select: none;
+    vertical-align: middle;
+  }
+  td.row-num.new-row-num { color: var(--accent2); }
+
+  .cell-display {
+    padding: 5px 8px;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    min-width: 60px;
+    user-select: none;
+  }
+  td.selected { outline: 2px solid var(--accent); outline-offset: -2px; background: #1e2200 !important; }
+  td.selected .cell-display { cursor: text; }
+  .cell-display.rtl-content { direction: rtl; text-align: right; }
+  .cell-display.quoted { color: #a8d8a8; }
+  .cell-display.numeric { color: #82b4ff; }
+  .cell-display.empty-val { color: var(--text-dim); font-style: italic; font-size: 10px; }
+
+  .cell-input {
+    width: 100%;
+    min-width: 80px;
+    padding: 5px 8px;
+    background: var(--cell-edit);
+    color: var(--text);
+    border: 2px solid var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    resize: none;
+    line-height: 1.4;
+    min-height: 28px;
+    display: block;
+    box-sizing: border-box;
+  }
+  .cell-input.rtl-content { direction: rtl; text-align: right; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--accent2);
+    color: var(--accent2);
+    padding: 10px 18px;
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  .sep { color: var(--border); }
+
+  /* scrollbar - thick, visible, high contrast */
+  ::-webkit-scrollbar { width: 14px; height: 14px; }
+  ::-webkit-scrollbar-track { background: #1a1a1a; border-left: 1px solid #444; }
+  ::-webkit-scrollbar-track:horizontal { border-top: 1px solid #444; border-left: none; }
+  ::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; border: 2px solid #1a1a1a; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  ::-webkit-scrollbar-corner { background: #1a1a1a; }
+  /* Firefox */
+  .table-wrap { scrollbar-width: auto; scrollbar-color: #888 #1a1a1a; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">CSV<span>edit</span></div>
+  <button class="btn" onclick="document.getElementById('file-input').click()">📂 Open CSV</button>
+  <input type="file" id="file-input" accept=".csv,text/csv">
+
+  <span id="header-actions" style="display:none; display:contents;">
+    <button class="btn accent2" id="btn-add-row" onclick="addRow()" style="display:none">＋ Add Row</button>
+    <button class="btn" id="btn-undo-row" onclick="undo()" style="display:none" disabled>↩ Undo</button>
+  </span>
+
+  <div class="spacer"></div>
+  <button class="btn primary" id="btn-download" onclick="downloadCSV()" style="display:none">⬇ Download CSV</button>
+</header>
+
+<div id="status-bar" class="status-bar" style="display:none">
+  <span>Rows: <span class="pill" id="stat-rows">0</span></span>
+  <span>Cols: <span class="pill" id="stat-cols">0</span></span>
+  <span id="stat-new-rows-wrap" style="display:none">Added: <span class="pill warn" id="stat-new-rows">0</span></span>
+  <span id="stat-file" style="color: var(--text-dim)"></span>
+</div>
+
+<div id="drop-zone">
+  <div class="big-icon">🗂</div>
+  <h2>Drop a CSV file here</h2>
+  <p>Or click <strong style="color:var(--accent)">Open CSV</strong> above. Handles large integers, quoted values, Hebrew text, and empty cells without mangling anything.</p>
+</div>
+
+<div id="editor-container">
+  <div class="table-scroll-outer">
+    <div class="table-wrap" id="table-wrap"></div>
+  </div>
+  <div class="hscroll-bar" id="hscroll-bar"><div class="hscroll-bar-inner" id="hscroll-inner"></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CSV Parser ────────────────────────────────────────────────────────────────
+// Careful parser: preserves quoted strings exactly (including numeric strings),
+// handles \r\n, \n, \r; supports Unicode/Hebrew.
+function parseCSV(text) {
+  const rows = [];
+  let i = 0, n = text.length;
+
+  function readField() {
+    if (i >= n) return '';
+    if (text[i] === '"') {
+      // quoted field — read until closing quote, handle ""
+      let val = '';
+      i++; // skip opening quote
+      while (i < n) {
+        if (text[i] === '"') {
+          if (i + 1 < n && text[i + 1] === '"') {
+            val += '"'; i += 2;
+          } else {
+            i++; break; // closing quote
+          }
+        } else {
+          val += text[i++];
+        }
+      }
+      return { value: val, wasQuoted: true };
+    } else {
+      let val = '';
+      while (i < n && text[i] !== ',' && text[i] !== '\n' && text[i] !== '\r') {
+        val += text[i++];
+      }
+      return { value: val, wasQuoted: false };
+    }
+  }
+
+  while (i < n) {
+    const row = [];
+    // read fields until end of line or end of string
+    while (true) {
+      const field = readField();
+      row.push(field);
+      if (i >= n || text[i] === '\n' || text[i] === '\r') break;
+      if (text[i] === ',') { i++; continue; }
+      break;
+    }
+    rows.push(row);
+    // skip line ending
+    if (i < n && text[i] === '\r') i++;
+    if (i < n && text[i] === '\n') i++;
+  }
+
+  // remove trailing empty row artifact
+  if (rows.length > 0) {
+    const last = rows[rows.length - 1];
+    if (last.length === 1 && last[0].value === '') rows.pop();
+  }
+
+  return rows;
+}
+
+// ── Serialise CSV ─────────────────────────────────────────────────────────────
+// Re-quote any field that was originally quoted, or that contains comma/quote/newline.
+function fieldToCSV(value, wasQuoted) {
+  const needsQuote = wasQuoted
+    || value.includes(',')
+    || value.includes('"')
+    || value.includes('\n')
+    || value.includes('\r');
+  if (needsQuote) {
+    return '"' + value.replace(/"/g, '""') + '"';
+  }
+  return value;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let headers = [];       // string[]
+let data = [];          // [{value, wasQuoted}[]]  — original rows (excl header)
+let addedRows = [];     // [{value, wasQuoted}[]]  — new rows appended
+let fileName = 'edited.csv';
+let trailingNewline = true; // preserve original file's trailing newline
+let lastFocusedCell = null;  // { ri, ci } — last cell that was clicked/committed
+
+// ── Undo / Redo stacks ────────────────────────────────────────────────────────
+// Entry: { type:'cell', ri, ci, oldField, newField } | { type:'addRow' }
+let undoStack = [];
+let redoStack = [];
+
+function pushUndo(entry) {
+  undoStack.push(entry);
+  redoStack = []; // new action clears redo
+  document.getElementById('btn-undo-row').disabled = false;
+}
+
+function applyEntry(entry, direction) {
+  // direction: 'undo' uses oldField, 'redo' uses newField
+  if (entry.type === 'addRow') {
+    if (direction === 'undo') {
+      addedRows.pop();
+      render();
+      // select last visible cell
+      const lastRi = data.length + addedRows.length - 1;
+      if (lastRi >= 0) setTimeout(() => selectCell(lastRi, 0), 30);
+      showToast('Undid row addition');
+    } else {
+      addedRows.push(headers.map(() => ({ value: '', wasQuoted: false })));
+      render();
+      const newRi = data.length + addedRows.length - 1;
+      setTimeout(() => { selectCell(newRi, 0); const td = document.querySelector(`td[data-ri="${newRi}"][data-ci="0"]`); if (td) td.scrollIntoView({ block: 'center' }); }, 30);
+      showToast('Redid row addition');
+    }
+  } else if (entry.type === 'cell') {
+    const { ri, ci } = entry;
+    const field = direction === 'undo' ? entry.oldField : entry.newField;
+    if (ri < data.length) data[ri][ci] = field;
+    else if (ri - data.length < addedRows.length) addedRows[ri - data.length][ci] = field;
+    const td = document.querySelector(`td[data-ri="${ri}"][data-ci="${ci}"]`);
+    if (td) {
+      td.innerHTML = renderCellDisplay(field);
+      wireCell(td);
+      td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      selectCell(ri, ci);
+    }
+    showToast(direction === 'undo' ? 'Undid cell edit' : 'Redid cell edit');
+  }
+  updateStats();
+  document.getElementById('btn-undo-row').disabled = undoStack.length === 0;
+}
+
+function undo() {
+  if (activeCell) { cancelCell(activeCell); return; }
+  if (undoStack.length === 0) return;
+  const entry = undoStack.pop();
+  redoStack.push(entry);
+  applyEntry(entry, 'undo');
+}
+
+function redo() {
+  if (activeCell) return;
+  if (redoStack.length === 0) return;
+  const entry = redoStack.pop();
+  undoStack.push(entry);
+  applyEntry(entry, 'redo');
+}
+
+// ── Hebrew / RTL detection ────────────────────────────────────────────────────
+function hasHebrew(s) {
+  return /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(s);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const wrap = document.getElementById('table-wrap');
+  const allRows = [...data, ...addedRows];
+
+  let html = '<table><thead><tr>';
+  html += '<th class="row-num-header">#</th>';
+  headers.forEach(h => {
+    const isRTL = hasHebrew(h);
+    html += `<th${isRTL ? ' dir="rtl"' : ''}>${escHtml(h)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  allRows.forEach((row, ri) => {
+    const isNew = ri >= data.length;
+    html += `<tr${isNew ? ' class="new-row"' : ''}>`;
+    const rowLabel = isNew ? `+${ri - data.length + 1}` : (ri + 1);
+    html += `<td class="row-num${isNew ? ' new-row-num' : ''}">${rowLabel}</td>`;
+
+    headers.forEach((_, ci) => {
+      const field = row[ci] || { value: '', wasQuoted: false };
+      html += `<td data-ri="${ri}" data-ci="${ci}">`;
+      html += renderCellDisplay(field);
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+
+  // attach click+dblclick listeners
+  wrap.querySelectorAll('td[data-ri]').forEach(td => wireCell(td));
+  // restore selection highlight if applicable
+  if (lastFocusedCell) {
+    const { ri, ci } = lastFocusedCell;
+    const td = wrap.querySelector(`td[data-ri="${ri}"][data-ci="${ci}"]`);
+    if (td) { selectedCell = { td, ri, ci }; td.classList.add('selected'); }
+  }
+
+  updateStats();
+}
+
+function renderCellDisplay(field) {
+  const { value, wasQuoted } = field;
+  const isRTL = hasHebrew(value);
+  let cls = 'cell-display';
+  if (isRTL) cls += ' rtl-content';
+  if (wasQuoted) cls += ' quoted';
+  else if (value !== '' && /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(value)) cls += ' numeric';
+  let displayed;
+  if (value === '') {
+    displayed = '(empty)';
+  } else if (wasQuoted) {
+    displayed = '&quot;' + escHtml(value) + '&quot;';
+  } else {
+    displayed = escHtml(value);
+  }
+  const emptyCls = value === '' ? ' empty-val' : '';
+  const dir = isRTL ? ' dir="rtl"' : '';
+  return `<span class="${cls}${emptyCls}"${dir}>${displayed}</span>`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Cell selection & editing ──────────────────────────────────────────────────
+let activeCell = null;   // currently being edited
+let selectedCell = null; // highlighted but not editing: { td, ri, ci }
+
+function wireCell(td) {
+  td.removeEventListener('click', onCellSingleClick);
+  td.removeEventListener('dblclick', onCellDblClick);
+  td.addEventListener('click', onCellSingleClick);
+  td.addEventListener('dblclick', onCellDblClick);
+}
+
+function selectCell(ri, ci) {
+  // clear previous selection highlight
+  if (selectedCell) selectedCell.td.classList.remove('selected');
+  const td = document.querySelector(`td[data-ri="${ri}"][data-ci="${ci}"]`);
+  if (!td) return;
+  selectedCell = { td, ri, ci };
+  lastFocusedCell = { ri, ci };
+  td.classList.add('selected');
+}
+
+function onCellSingleClick(e) {
+  const td = e.currentTarget;
+  if (activeCell) {
+    // clicking another cell while editing: commit then select new cell
+    commitCell(activeCell);
+  }
+  if (activeCell) return; // still editing (shouldn't happen)
+  const ri = parseInt(td.dataset.ri);
+  const ci = parseInt(td.dataset.ci);
+  selectCell(ri, ci);
+}
+
+function onCellDblClick(e) {
+  const td = e.currentTarget;
+  if (td.querySelector('textarea')) return;
+  const ri = parseInt(td.dataset.ri);
+  const ci = parseInt(td.dataset.ci);
+  openCellEditor(td, ri, ci);
+}
+
+function openCellEditor(td, ri, ci) {
+  if (activeCell) commitCell(activeCell);
+  const allRows = [...data, ...addedRows];
+  const field = allRows[ri][ci] || { value: '', wasQuoted: false };
+  const isRTL = hasHebrew(field.value);
+  const ta = document.createElement('textarea');
+  ta.className = 'cell-input' + (isRTL ? ' rtl-content' : '');
+  ta.value = field.value;
+  ta.rows = 1;
+  ta.style.width = Math.max(td.offsetWidth, 80) + 'px';
+
+  if (selectedCell) selectedCell.td.classList.remove('selected');
+  td.classList.remove('selected');
+  td.innerHTML = '';
+  td.appendChild(ta);
+  ta.focus();
+  ta.select();
+  activeCell = { td, ri, ci, ta };
+  selectedCell = null;
+  lastFocusedCell = { ri, ci };
+
+  ta.addEventListener('blur', () => commitCell(activeCell));
+  ta.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); commitCell(activeCell); }
+    if (ev.key === 'Escape') { ev.preventDefault(); cancelCell(activeCell); }
+    if (ev.key === 'Tab') { ev.preventDefault(); const { ri: r, ci: c } = activeCell; commitCell(activeCell); moveCell(r, c, ev.shiftKey ? -1 : 1); }
+    // auto-detect RTL
+    const val = ta.value + (ev.key.length === 1 ? ev.key : '');
+    if (hasHebrew(val)) ta.classList.add('rtl-content');
+    else ta.classList.remove('rtl-content');
+  });
+}
+
+// legacy alias kept for undo/redo wire calls
+function onCellClick(e) { onCellSingleClick(e); }
+
+function commitCell(ac) {
+  if (!ac) return;
+  const { td, ri, ci, ta } = ac;
+  const newVal = ta.value;
+  const allRows = [...data, ...addedRows];
+  const oldField = allRows[ri][ci] || { value: '', wasQuoted: false };
+  const newField = { value: newVal, wasQuoted: oldField.wasQuoted };
+
+  if (newVal !== oldField.value) {
+    pushUndo({ type: 'cell', ri, ci, oldField: { ...oldField }, newField: { ...newField } });
+  }
+
+  if (ri < data.length) data[ri][ci] = newField;
+  else addedRows[ri - data.length][ci] = newField;
+
+  td.innerHTML = renderCellDisplay(newField);
+  wireCell(td);
+  lastFocusedCell = { ri, ci };
+  activeCell = null;
+  selectCell(ri, ci);
+  document.getElementById('btn-undo-row').disabled = undoStack.length === 0;
+}
+
+function cancelCell(ac) {
+  if (!ac) return;
+  const { td, ri, ci } = ac;
+  const allRows = [...data, ...addedRows];
+  td.innerHTML = renderCellDisplay(allRows[ri][ci] || { value: '', wasQuoted: false });
+  wireCell(td);
+  lastFocusedCell = { ri, ci };
+  activeCell = null;
+  selectCell(ri, ci);
+}
+
+const PAGE_SIZE = 20; // rows per Page Up/Down
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// dir: column delta. For row-only movement pass dir=0 and provide explicit nri.
+function gotoCell(nri, nci) {
+  const allRows = [...data, ...addedRows];
+  nri = clamp(nri, 0, allRows.length - 1);
+  nci = clamp(nci, 0, headers.length - 1);
+  const td = document.querySelector(`td[data-ri="${nri}"][data-ci="${nci}"]`);
+  if (td) {
+    td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    selectCell(nri, nci);
+  }
+}
+
+function moveCell(ri, ci, dir) {
+  const allRows = [...data, ...addedRows];
+  let nci = ci + dir;
+  let nri = ri;
+  if (nci < 0) { nci = headers.length - 1; nri--; }
+  if (nci >= headers.length) { nci = 0; nri++; }
+  if (nri < 0 || nri >= allRows.length) return;
+  gotoCell(nri, nci);
+}
+
+// ── Add / Undo row ────────────────────────────────────────────────────────────
+function addRow() {
+  if (activeCell) commitCell(activeCell);
+  const emptyRow = headers.map(() => ({ value: '', wasQuoted: false }));
+  addedRows.push(emptyRow);
+  pushUndo({ type: 'addRow' });
+  render();
+  showToast('Row added');
+  // jump to first cell of the new row
+  const newRi = data.length + addedRows.length - 1;
+  const td = document.querySelector(`td[data-ri="${newRi}"][data-ci="0"]`);
+  if (td) {
+    td.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => selectCell(newRi, 0), 80);
+  }
+}
+
+function undoAddRow() {
+  undo();
+}
+
+function updateUndoBtn() {
+  const btn = document.getElementById('btn-undo-row');
+  btn.disabled = undoStack.length === 0 && !activeCell;
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('stat-rows').textContent = data.length + addedRows.length;
+  document.getElementById('stat-cols').textContent = headers.length;
+  if (addedRows.length > 0) {
+    document.getElementById('stat-new-rows-wrap').style.display = '';
+    document.getElementById('stat-new-rows').textContent = addedRows.length;
+  } else {
+    document.getElementById('stat-new-rows-wrap').style.display = 'none';
+  }
+}
+
+// ── Download ──────────────────────────────────────────────────────────────────
+function downloadCSV() {
+  if (activeCell) commitCell(activeCell);
+  const allRows = [...data, ...addedRows];
+  const lines = [];
+
+  // header line — no quoting needed unless header contains special chars
+  const headerLine = headers.map(h => {
+    if (h.includes(',') || h.includes('"') || h.includes('\n')) return '"' + h.replace(/"/g,'""') + '"';
+    return h;
+  }).join(',');
+  lines.push(headerLine);
+
+  allRows.forEach(row => {
+    const line = row.map(f => fieldToCSV(f.value, f.wasQuoted)).join(',');
+    lines.push(line);
+  });
+
+  const csv = lines.join('\n') + (trailingNewline ? '\n' : '');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName.replace(/\.csv$/i, '') + '_edited.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV downloaded!');
+}
+
+// ── File loading ──────────────────────────────────────────────────────────────
+function loadFile(file) {
+  if (!file) return;
+  fileName = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let text = e.target.result;
+    // strip BOM if present (don't re-add on save)
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    // remember whether the original ended with a newline
+    trailingNewline = text.endsWith('\n') || text.endsWith('\r');
+    initFromText(text, file.name);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function initFromText(text, name) {
+  const rows = parseCSV(text);
+  if (rows.length === 0) { showToast('Empty or invalid CSV'); return; }
+
+  // header row — just strings
+  headers = rows[0].map(f => f.value);
+  data = rows.slice(1);
+  addedRows = [];
+
+  // Pad rows to header length
+  data.forEach(row => {
+    while (row.length < headers.length) row.push({ value: '', wasQuoted: false });
+  });
+
+  document.getElementById('drop-zone').style.display = 'none';
+  document.getElementById('editor-container').style.display = 'flex';
+  document.getElementById('status-bar').style.display = 'flex';
+  document.getElementById('btn-download').style.display = '';
+  document.getElementById('btn-add-row').style.display = '';
+  document.getElementById('btn-undo-row').style.display = '';
+  document.getElementById('stat-file').textContent = name;
+  updateUndoBtn();
+  render();
+  setTimeout(initScrollSync, 50);
+  showToast(`Loaded ${rows.length - 1} rows × ${headers.length} cols`);
+}
+
+// ── File input & drag-drop ────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', e => {
+  loadFile(e.target.files[0]);
+  e.target.value = '';
+});
+
+const dz = document.getElementById('drop-zone');
+document.body.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+document.body.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+document.body.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+// ── Global keyboard shortcuts ─────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const allRows = [...data, ...addedRows];
+  const totalRows = allRows.length;
+  const totalCols = headers.length;
+
+  // Ctrl+Z / Ctrl+ז — undo (always, even while editing)
+  if (e.ctrlKey && !e.shiftKey && (e.key === 'z' || e.key === 'Z' || e.key === 'ז')) {
+    e.preventDefault(); undo(); return;
+  }
+
+  // Ctrl+Y / Ctrl+מ — redo
+  if (e.ctrlKey && (e.key === 'y' || e.key === 'Y' || e.key === 'מ')) {
+    e.preventDefault(); redo(); return;
+  }
+
+  // Ctrl+S / Ctrl+ד
+  if (e.ctrlKey && (e.key === 's' || e.key === 'S' || e.key === 'ד')) {
+    e.preventDefault(); downloadCSV(); return;
+  }
+
+  // F2 — open editor for selected cell
+  if (e.key === 'F2' && !activeCell && selectedCell) {
+    e.preventDefault();
+    openCellEditor(selectedCell.td, selectedCell.ri, selectedCell.ci);
+    return;
+  }
+
+  // Enter — open editor for selected cell (or commit if editing)
+  if (e.key === 'Enter' && !e.shiftKey && !activeCell && selectedCell) {
+    e.preventDefault();
+    openCellEditor(selectedCell.td, selectedCell.ri, selectedCell.ci);
+    return;
+  }
+
+  // Navigation: only when NOT editing
+  if (activeCell) return;
+  if (totalRows === 0) return;
+
+  const cur = lastFocusedCell || { ri: 0, ci: 0 };
+  const ri = cur.ri, ci = cur.ci;
+
+  if (e.key === 'Home' && !e.ctrlKey) {
+    e.preventDefault(); gotoCell(ri, 0);
+  } else if (e.key === 'End' && !e.ctrlKey) {
+    e.preventDefault(); gotoCell(ri, totalCols - 1);
+  } else if (e.key === 'Home' && e.ctrlKey) {
+    e.preventDefault(); gotoCell(0, 0);
+  } else if (e.key === 'End' && e.ctrlKey) {
+    e.preventDefault(); gotoCell(totalRows - 1, totalCols - 1);
+  } else if (e.key === 'PageUp') {
+    e.preventDefault(); gotoCell(clamp(ri - PAGE_SIZE, 0, totalRows - 1), ci);
+  } else if (e.key === 'PageDown') {
+    e.preventDefault(); gotoCell(clamp(ri + PAGE_SIZE, 0, totalRows - 1), ci);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault(); gotoCell(ri - 1, ci);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault(); gotoCell(ri + 1, ci);
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault(); moveCell(ri, ci, -1);
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault(); moveCell(ri, ci, 1);
+  }
+});
+
+// ── Sync horizontal scrollbar ─────────────────────────────────────────────────
+function syncHScrollBar() {
+  const wrap = document.getElementById('table-wrap');
+  const hbar = document.getElementById('hscroll-bar');
+  const inner = document.getElementById('hscroll-inner');
+  if (!wrap || !hbar || !inner) return;
+  inner.style.width = wrap.scrollWidth + 'px';
+  hbar.scrollLeft = wrap.scrollLeft;
+}
+
+function initScrollSync() {
+  const wrap = document.getElementById('table-wrap');
+  const hbar = document.getElementById('hscroll-bar');
+  if (!wrap || !hbar) return;
+  let syncing = false;
+  wrap.addEventListener('scroll', () => {
+    if (syncing) return; syncing = true;
+    hbar.scrollLeft = wrap.scrollLeft;
+    syncing = false;
+  });
+  hbar.addEventListener('scroll', () => {
+    if (syncing) return; syncing = true;
+    wrap.scrollLeft = hbar.scrollLeft;
+    syncing = false;
+  });
+  // update inner width on resize
+  new ResizeObserver(syncHScrollBar).observe(wrap);
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
