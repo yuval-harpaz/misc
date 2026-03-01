@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,10 +9,17 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <!-- leaflet.heat removed; using custom canvas heatmap for fixed color scale -->
     <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
-        #map { height: 100vh; width: 100vw; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
 
         #floating-title {
             position: absolute;
@@ -24,13 +32,14 @@
             border-radius: 8px;
             font-size: 1.2em;
             font-weight: 600;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
             z-index: 1000;
             direction: rtl;
             text-align: center;
             white-space: nowrap;
             backdrop-filter: blur(4px);
         }
+
         #floating-title .subtitle {
             display: block;
             font-size: 0.65em;
@@ -38,8 +47,15 @@
             margin-top: 3px;
             font-weight: normal;
         }
-        #floating-title .subtitle a { color: #7eb8ff; text-decoration: none; }
-        #floating-title .subtitle a:hover { text-decoration: underline; }
+
+        #floating-title .subtitle a {
+            color: #7eb8ff;
+            text-decoration: none;
+        }
+
+        #floating-title .subtitle a:hover {
+            text-decoration: underline;
+        }
 
         #search-container {
             position: absolute;
@@ -50,32 +66,41 @@
             width: 230px;
             direction: rtl;
         }
+
         #search-input {
             width: 100%;
             padding: 7px 12px;
             font-size: 1em;
             border-radius: 8px;
             border: 1px solid #ccc;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             box-sizing: border-box;
             direction: rtl;
-            background: rgba(255,255,255,0.92);
+            background: rgba(255, 255, 255, 0.92);
             color: #222;
             backdrop-filter: blur(4px);
             outline: none;
         }
-        #search-input::placeholder { color: #888; }
-        #search-input:focus { box-shadow: 0 2px 12px rgba(60,120,220,0.3); border-color: #88b; }
+
+        #search-input::placeholder {
+            color: #888;
+        }
+
+        #search-input:focus {
+            box-shadow: 0 2px 12px rgba(60, 120, 220, 0.3);
+            border-color: #88b;
+        }
 
         #autocomplete-list {
-            background: rgba(255,255,255,0.97);
+            background: rgba(255, 255, 255, 0.97);
             border: 1px solid #ccc;
             border-top: none;
             border-radius: 0 0 8px 8px;
             max-height: 200px;
             overflow-y: auto;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
+
         .autocomplete-item {
             padding: 7px 12px;
             cursor: pointer;
@@ -83,8 +108,10 @@
             direction: rtl;
             color: #222;
         }
-        .autocomplete-item:hover, .autocomplete-item.selected {
-            background: rgba(60,120,220,0.12);
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: rgba(60, 120, 220, 0.12);
             color: #111;
         }
 
@@ -96,15 +123,25 @@
             overflow-y: auto;
             min-width: 160px;
         }
+
         .alarm-popup h4 {
             margin: 0 0 6px 0;
             font-size: 1.05em;
             border-bottom: 1px solid #ccc;
             padding-bottom: 4px;
         }
-        .alarm-popup .alarm-time { padding: 1px 0; color: #222; }
 
-        .count-label { background: none !important; border: none !important; box-shadow: none !important; }
+        .alarm-popup .alarm-time {
+            padding: 1px 0;
+            color: #222;
+        }
+
+        .count-label {
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
         .count-label-inner {
             font-size: 11px;
             font-weight: 800;
@@ -121,312 +158,377 @@
             color: #eee;
             text-shadow: 0 0 3px #000;
         }
-        .leaflet-popup-content { margin: 10px 14px; }
-    </style>
-</head>
-<body>
-<div id="floating-title">
-    אזעקות מתחילת המבצע
-    <div class="subtitle">
-        מאת <a href="https://oct7database.com" target="_blank">oct7database.com</a> · נתוני פקע"ר דרך
-        <a href="https://www.tzevaadom.co.il/historical" target="_blank">צבע אדום</a>
-    </div>
-</div>
 
-<div id="search-container">
-    <input id="search-input" type="text" placeholder="חיפוש יישוב..." autocomplete="off" />
-    <div id="autocomplete-list"></div>
-</div>
-
-<div id="map"></div>
-
-<script>
-    const GITHUB_RAW = 'https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/';
-    const DATE_FROM = '2026-02-28';
-    const DATE_TO   = '2027-02-28'; // change upper limit when alarms stop
-
-    function parseDate(str) {
-        if (!str) return null;
-        return new Date(str.replace(' ', 'T'));
-    }
-    function formatTime(d) {
-        return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    }
-    async function fetchCSV(f) {
-        const r = await fetch(GITHUB_RAW + f);
-        const text = await r.text();
-        return new Promise(res => Papa.parse(text, { header:true, dynamicTyping:true, complete: d => res(d.data) }));
-    }
-    function buildPopupContent(loc, ts) {
-        let h = `<div class="alarm-popup"><h4>${loc} — ${ts.length} אזעקות</h4>`;
-        ts.forEach(t => { h += `<div class="alarm-time">🔴 ${t}</div>`; });
-        return h + '</div>';
-    }
-
-    function haversine(lat1, lng1, lat2, lng2) {
-        const R = 6371000;
-        const dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
-        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-        return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-
-    // Returns local maxima: points that are the highest-count within radiusMeters
-    function findLocalMaxima(entries, radiusMeters, minCount) {
-        return entries.filter(a => {
-            if (a.count < minCount) return false;
-            return entries.every(b => {
-                if (b === a) return true;
-                const dist = haversine(a.lat, a.lng, b.lat, b.lng);
-                return dist > radiusMeters || a.count >= b.count;
-            });
-        });
-    }
-
-    async function initMap() {
-        const [coord, alarms] = await Promise.all([fetchCSV('data/coord.csv'), fetchCSV('data/alarms.csv')]);
-
-        if (new URLSearchParams(window.location.search).has('notitle'))
-            document.getElementById('floating-title').style.display = 'none';
-
-        const map = L.map('map').setView([31.5, 34.75], 8);
-        L.tileLayer('https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png', {
-            attribution: '© המרכז למיפוי ישראל www.govmap.gov.il', maxZoom: 18
-        }).addTo(map);
-
-        const coordMap = {};
-        coord.forEach(c => {
-            const lat = Number(c.lat), lng = Number(c.long);
-            if (!isNaN(lat) && !isNaN(lng)) coordMap[c.loc] = [lat, lng];
-        });
-
-        const dayAlarms = alarms.filter(a => {
-            const d = parseDate(a.time);
-            if (!d || isNaN(d)) return false;
-            const ds = d.toISOString().slice(0,10);
-            return ds >= DATE_FROM && ds <= DATE_TO && a.threat === 0;
-        });
-
-        const locTimes = {};
-        dayAlarms.forEach(a => {
-            const city = a.cities;
-            if (!city) return;
-            if (!locTimes[city]) locTimes[city] = [];
-            const d = parseDate(a.time);
-            if (d) locTimes[city].push(d);
-        });
-        Object.keys(locTimes).forEach(loc => locTimes[loc].sort((a,b) => a-b));
-
-        // Build locData array
-        const locDataArr = [];
-        const markerMap = {};
-
-        Object.entries(locTimes).forEach(([loc, times]) => {
-            const coords = coordMap[loc];
-            if (!coords) { console.warn('No coords:', loc); return; }
-            locDataArr.push({ loc, lat: coords[0], lng: coords[1], count: times.length });
-        });
-
-        const maxCount = Math.max(...locDataArr.map(d => d.count), 1);
-
-        // Dark blue → blue → cyan → green-yellow → orange → dark red
-        // No white/cream stop so mid-range values stay visibly colored
-        function countToColor(count) {
-            const v = count / maxCount; // [0, 1]
-            const stops = [
-                [0.00, [ 20,  40, 160]],  // dark blue
-                [0.20, [ 50, 130, 220]],  // medium blue
-                [0.38, [ 60, 200, 210]],  // cyan
-                [0.55, [100, 200,  80]],  // green
-                [0.70, [255, 220,  50]],  // yellow
-                [0.85, [240, 100,  20]],  // orange
-                [1.00, [150,  15,  15]],  // dark red
-            ];
-            for (let i = 1; i < stops.length; i++) {
-                const [t0, c0] = stops[i - 1];
-                const [t1, c1] = stops[i];
-                if (v <= t1) {
-                    const t = (v - t0) / (t1 - t0);
-                    const r = Math.round(c0[0] + t * (c1[0] - c0[0]));
-                    const g = Math.round(c0[1] + t * (c1[1] - c0[1]));
-                    const b = Math.round(c0[2] + t * (c1[2] - c0[2]));
-                    return `rgb(${r},${g},${b})`;
-                }
-            }
-            return `rgb(160,20,20)`;
+        .leaflet-popup-content {
+            margin: 10px 14px;
         }
 
-        // Draw colored circles sorted small→large so larger (redder) circles render on top
-        const sortedEntries = Object.entries(locTimes).sort((a, b) => a[1].length - b[1].length);
-        sortedEntries.forEach(([loc, times]) => {
-            const coords = coordMap[loc];
-            if (!coords) return;
-            const count = times.length;
-            const color = countToColor(count);
-            const marker = L.circleMarker(coords, {
-                radius: Math.max(Math.sqrt(count) * 2.5, 4),
-                fillColor: color,
-                color: 'none',
-                weight: 0,
-                fillOpacity: 0.8
-            }).bindPopup(buildPopupContent(loc, times.map(formatTime)), { maxWidth: 280, maxHeight: 340 })
-              .addTo(map);
-            markerMap[loc] = marker;
-        });
+        #threat-selector {
+            position: absolute;
+            top: 88px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(10, 10, 20, 0.82);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            direction: rtl;
+            backdrop-filter: blur(8px);
+            font-size: 0.95em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
-        // Southernmost point (min lat) — always labelled
-        const southernmost = locDataArr.reduce((s, p) => p.lat < s.lat ? p : s, locDataArr[0]);
+        #threat-selector .title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.85em;
+            color: #aac4ff;
+            border-bottom: 1px solid rgba(170, 196, 255, 0.3);
+            padding-bottom: 4px;
+        }
 
-        // ---- Vertical Colorbar ----
-        const colorbar = L.control({ position: 'bottomleft' });
-        colorbar.onAdd = function() {
-            const div = L.DomUtil.create('div');
-            div.style.cssText = `
+        #threat-selector label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 6px 0;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        #threat-selector label:hover {
+            color: #aac4ff;
+        }
+
+        #threat-selector input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            accent-color: #7eb8ff;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="floating-title">
+        אזעקות מתחילת המבצע
+        <div class="subtitle">
+            מאת <a href="https://oct7database.com" target="_blank">oct7database.com</a> · נתוני פקע"ר דרך
+            <a href="https://www.tzevaadom.co.il/historical" target="_blank">צבע אדום</a>
+        </div>
+    </div>
+
+    <div id="search-container">
+        <input id="search-input" type="text" placeholder="חיפוש יישוב..." autocomplete="off" />
+        <div id="autocomplete-list"></div>
+    </div>
+
+    <div id="threat-selector">
+        <div class="title">סינון לפי איום</div>
+        <label><input type="checkbox" value="0" checked id="threat-0"> רקטות</label>
+        <label><input type="checkbox" value="5" id="threat-5"> כלי טיס עויין</label>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        const GITHUB_RAW = 'https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/';
+        const DATE_FROM = '2026-02-28';
+        const DATE_TO = '2027-02-28';
+
+        function parseDate(str) {
+            if (!str) return null;
+            return new Date(str.replace(' ', 'T'));
+        }
+        function formatTime(d) {
+            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
+        async function fetchCSV(f) {
+            const r = await fetch(GITHUB_RAW + f);
+            const text = await r.text();
+            return new Promise(res => Papa.parse(text, { header: true, dynamicTyping: true, complete: d => res(d.data) }));
+        }
+        function buildPopupContent(loc, ts) {
+            let h = `<div class="alarm-popup"><h4>${loc} — ${ts.length} אזעקות</h4>`;
+            ts.forEach(t => { h += `<div class="alarm-time">🔴 ${t}</div>`; });
+            return h + '</div>';
+        }
+        function haversine(lat1, lng1, lat2, lng2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+        function findLocalMaxima(entries, radiusMeters, minCount) {
+            return entries.filter(a => {
+                if (a.count < minCount) return false;
+                return entries.every(b => {
+                    if (b === a) return true;
+                    const dist = haversine(a.lat, a.lng, b.lat, b.lng);
+                    return dist > radiusMeters || a.count >= b.count;
+                });
+            });
+        }
+
+        async function initMap() {
+            const [coord, alarms] = await Promise.all([fetchCSV('data/coord.csv'), fetchCSV('data/alarms.csv')]);
+
+            const coordMap = {};
+            coord.forEach(c => {
+                const lat = Number(c.lat), lng = Number(c.long);
+                if (!isNaN(lat) && !isNaN(lng)) coordMap[c.loc] = [lat, lng];
+            });
+
+            if (new URLSearchParams(window.location.search).has('notitle'))
+                document.getElementById('floating-title').style.display = 'none';
+
+            const map = L.map('map').setView([31.5, 34.75], 8);
+            L.tileLayer('https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png', {
+                attribution: '© המרכז למיפוי ישראל www.govmap.gov.il', maxZoom: 18
+            }).addTo(map);
+
+            let markerLayer = L.layerGroup().addTo(map);
+            let labelLayer = L.layerGroup().addTo(map);
+            let currentLocDataArr = [];
+            let markerMap = {};
+            let southernmost = null;
+
+            // Calculate global max count once for fixed scale
+            const allRelevantAlarms = alarms.filter(a => {
+                const d = parseDate(a.time);
+                if (!d || isNaN(d)) return false;
+                const ds = d.toISOString().slice(0, 10);
+                return ds >= DATE_FROM && ds <= DATE_TO && (a.threat === 0 || a.threat === 5);
+            });
+            const globalCounts = {};
+            allRelevantAlarms.forEach(a => {
+                const city = a.cities;
+                if (city) globalCounts[city] = (globalCounts[city] || 0) + 1;
+            });
+            const maxCount = Math.max(...Object.values(globalCounts), 1);
+
+            const colorbar = L.control({ position: 'bottomleft' });
+            let colorbarDiv = null;
+
+            function countToColor(count) {
+                const v = count / maxCount;
+                const stops = [
+                    [0.00, [20, 40, 160]],  // dark blue
+                    [0.20, [50, 130, 220]],  // medium blue
+                    [0.38, [60, 200, 210]],  // cyan
+                    [0.55, [100, 200, 80]],  // green
+                    [0.70, [255, 220, 50]],  // yellow
+                    [0.85, [240, 100, 20]],  // orange
+                    [1.00, [150, 15, 15]],  // dark red
+                ];
+                for (let i = 1; i < stops.length; i++) {
+                    const [t0, c0] = stops[i - 1];
+                    const [t1, c1] = stops[i];
+                    if (v <= t1) {
+                        const t = (v - t0) / (t1 - t0);
+                        const r = Math.round(c0[0] + t * (c1[0] - c0[0]));
+                        const g = Math.round(c0[1] + t * (c1[1] - c0[1]));
+                        const b = Math.round(c0[2] + t * (c1[2] - c0[2]));
+                        return `rgb(${r},${g},${b})`;
+                    }
+                }
+                return `rgb(160,20,20)`;
+            }
+
+            function updateDisplay() {
+                markerLayer.clearLayers();
+                markerMap = {};
+
+                const selectedThreats = [];
+                if (document.getElementById('threat-0').checked) selectedThreats.push(0);
+                if (document.getElementById('threat-5').checked) selectedThreats.push(5);
+
+                const filteredAlarms = alarms.filter(a => {
+                    const d = parseDate(a.time);
+                    if (!d || isNaN(d)) return false;
+                    const ds = d.toISOString().slice(0, 10);
+                    return ds >= DATE_FROM && ds <= DATE_TO && selectedThreats.includes(a.threat);
+                });
+
+                const locTimes = {};
+                filteredAlarms.forEach(a => {
+                    const city = a.cities;
+                    if (!city) return;
+                    if (!locTimes[city]) locTimes[city] = [];
+                    const d = parseDate(a.time);
+                    if (d) locTimes[city].push(d);
+                });
+                Object.keys(locTimes).forEach(loc => locTimes[loc].sort((a, b) => a - b));
+
+                currentLocDataArr = [];
+                Object.entries(locTimes).forEach(([loc, times]) => {
+                    const coords = coordMap[loc];
+                    if (!coords) return;
+                    currentLocDataArr.push({ loc, lat: coords[0], lng: coords[1], count: times.length });
+                });
+
+                southernmost = currentLocDataArr.length ? currentLocDataArr.reduce((s, p) => p.lat < s.lat ? p : s, currentLocDataArr[0]) : null;
+
+                const sortedEntries = Object.entries(locTimes).sort((a, b) => a[1].length - b[1].length);
+                sortedEntries.forEach(([loc, times]) => {
+                    const coords = coordMap[loc];
+                    if (!coords) return;
+                    const count = times.length;
+                    const color = countToColor(count);
+                    const marker = L.circleMarker(coords, {
+                        radius: Math.max(Math.sqrt(count) * 2.5, 4),
+                        fillColor: color,
+                        color: 'none',
+                        weight: 0,
+                        fillOpacity: 0.8
+                    }).bindPopup(buildPopupContent(loc, times.map(formatTime)), { maxWidth: 280, maxHeight: 340 })
+                        .addTo(markerLayer);
+                    markerMap[loc] = marker;
+                });
+
+                if (colorbarDiv) {
+                    updateColorbar(colorbarDiv);
+                }
+
+                redrawLabels();
+                updateAutocomplete();
+            }
+
+            function updateColorbar(div) {
+                div.innerHTML = '';
+                const title = document.createElement('div');
+                title.style.cssText = 'font-size:11px; color:#445; margin-bottom:2px; white-space:nowrap;';
+                title.textContent = 'מספר אזעקות';
+
+                const barH = 140, barW = 14;
+                const bc = document.createElement('canvas');
+                bc.width = barW; bc.height = barH;
+                const bx = bc.getContext('2d');
+                for (let i = 0; i < barH; i++) {
+                    const v = 1 - i / (barH - 1);
+                    bx.fillStyle = countToColor(Math.round(v * maxCount));
+                    bx.fillRect(0, i, barW, 1);
+                }
+                bc.style.cssText = 'border-radius:4px; display:block;';
+
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'display:flex; flex-direction:row; align-items:stretch; gap:4px;';
+                const labelsDiv = document.createElement('div');
+                labelsDiv.style.cssText = `display:flex; flex-direction:column; justify-content:space-between; height:${barH}px; font-size:11px; color:#444;`;
+                labelsDiv.innerHTML = `<span>${maxCount}</span><span>${Math.round(maxCount / 2)}</span><span>0</span>`;
+                wrapper.appendChild(bc);
+                wrapper.appendChild(labelsDiv);
+
+                div.appendChild(title);
+                div.appendChild(wrapper);
+            }
+
+            colorbar.onAdd = function () {
+                colorbarDiv = L.DomUtil.create('div');
+                colorbarDiv.style.cssText = `
                 background: rgba(255,255,255,0.92); border-radius: 8px; padding: 8px 10px;
                 color: #222; font-size: 11px; backdrop-filter: blur(4px);
                 box-shadow: 0 2px 8px rgba(0,0,0,0.15); direction: rtl; text-align: right;
                 display: flex; flex-direction: column; align-items: center; gap: 4px;
                 border: 1px solid #ddd;
             `;
-            const title = document.createElement('div');
-            title.style.cssText = 'font-size:11px; color:#445; margin-bottom:2px; white-space:nowrap;';
-            title.textContent = 'מספר אזעקות';
+                updateColorbar(colorbarDiv);
+                return colorbarDiv;
+            };
+            colorbar.addTo(map);
 
-            const barH = 140, barW = 14;
-            const bc = document.createElement('canvas');
-            bc.width = barW; bc.height = barH;
-            const bx = bc.getContext('2d');
-            // Draw top→bottom: max (red) at top, min (cyan) at bottom
-            for (let i = 0; i < barH; i++) {
-                const v = 1 - i / (barH - 1); // top = max
-                bx.fillStyle = countToColor(Math.round(v * maxCount));
-                bx.fillRect(0, i, barW, 1);
-            }
-            bc.style.cssText = 'border-radius:4px; display:block;';
+            function redrawLabels() {
+                labelLayer.clearLayers();
+                if (!currentLocDataArr.length) return;
+                const z = map.getZoom();
+                const r = 30000 / Math.pow(2, z - 7);
+                const minCount = z <= 7 ? 10 : (z <= 9 ? 5 : (z <= 11 ? 2 : 1));
 
-            // Labels alongside bar: top=max, mid, bottom=0
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'display:flex; flex-direction:row; align-items:stretch; gap:4px;';
-            const labelsDiv = document.createElement('div');
-            labelsDiv.style.cssText = `display:flex; flex-direction:column; justify-content:space-between; height:${barH}px; font-size:11px; color:#444;`;
-            labelsDiv.innerHTML = `<span>${maxCount}</span><span>${Math.round(maxCount/2)}</span><span>0</span>`;
-            wrapper.appendChild(bc);
-            wrapper.appendChild(labelsDiv);
+                const maxima = findLocalMaxima(currentLocDataArr, r, minCount);
 
-            div.appendChild(title);
-            div.appendChild(wrapper);
-            return div;
-        };
-        colorbar.addTo(map);
-
-        // ---- Labels at local maxima/minima, deduplicated by clustering ----
-        let labelLayer = L.layerGroup().addTo(map);
-
-        function getRadius(z) {
-            return 30000 / Math.pow(2, z - 7);
-        }
-        function getMinCount(z) {
-            if (z <= 7) return 10;
-            if (z <= 9) return 5;
-            if (z <= 11) return 2;
-            return 1;
-        }
-
-        // Cluster nearby points with same count, return centroid of each cluster
-        function clusterSameValue(points, radiusMeters) {
-            const used = new Set();
-            const centroids = [];
-            points.forEach((a, i) => {
-                if (used.has(i)) return;
-                const group = [a];
-                used.add(i);
-                points.forEach((b, j) => {
-                    if (used.has(j)) return;
-                    if (b.count === a.count && haversine(a.lat, a.lng, b.lat, b.lng) < radiusMeters) {
-                        group.push(b);
-                        used.add(j);
-                    }
+                const used = new Set();
+                const deduped = [];
+                maxima.forEach((a, i) => {
+                    if (used.has(i)) return;
+                    const group = [a];
+                    used.add(i);
+                    maxima.forEach((b, j) => {
+                        if (used.has(j)) return;
+                        if (b.count === a.count && haversine(a.lat, a.lng, b.lat, b.lng) < r * 0.6) {
+                            group.push(b);
+                            used.add(j);
+                        }
+                    });
+                    const lat = group.reduce((s, p) => s + p.lat, 0) / group.length;
+                    const lng = group.reduce((s, p) => s + p.lng, 0) / group.length;
+                    deduped.push({ lat, lng, count: a.count });
                 });
-                const lat = group.reduce((s, p) => s + p.lat, 0) / group.length;
-                const lng = group.reduce((s, p) => s + p.lng, 0) / group.length;
-                centroids.push({ lat, lng, count: a.count });
-            });
-            return centroids;
-        }
 
-        function makeLabel(lat, lng, count) {
-            const icon = L.divIcon({
-                className: 'count-label',
-                html: `<div class="count-label-inner">${count}</div>`,
-                iconSize: [30, 14],
-                iconAnchor: [15, 7]
-            });
-            return L.marker([lat, lng], { icon, interactive: false });
-        }
+                if (southernmost) {
+                    const hasSouth = deduped.some(p => haversine(p.lat, p.lng, southernmost.lat, southernmost.lng) < r * 0.5);
+                    if (!hasSouth) deduped.push({ lat: southernmost.lat, lng: southernmost.lng, count: southernmost.count });
+                }
 
-        function redrawLabels() {
-            labelLayer.clearLayers();
-            const z = map.getZoom();
-            const r = getRadius(z);
-            const maxima = findLocalMaxima(locDataArr, r, getMinCount(z));
-            const deduped = clusterSameValue(maxima, r * 0.6);
-
-            // Always include southernmost point (forced label)
-            const hasSouth = deduped.some(p =>
-                haversine(p.lat, p.lng, southernmost.lat, southernmost.lng) < r * 0.5
-            );
-            if (!hasSouth && southernmost) {
-                deduped.push({ lat: southernmost.lat, lng: southernmost.lng, count: southernmost.count });
+                deduped.forEach(({ lat, lng, count }) => {
+                    const icon = L.divIcon({
+                        className: 'count-label',
+                        html: `<div class="count-label-inner">${count}</div>`,
+                        iconSize: [30, 14],
+                        iconAnchor: [15, 7]
+                    });
+                    L.marker([lat, lng], { icon, interactive: false }).addTo(labelLayer);
+                });
             }
 
-            deduped.forEach(({ lat, lng, count }) => {
-                makeLabel(lat, lng, count).addTo(labelLayer);
+            map.on('zoomend', redrawLabels);
+
+            let allLocs = [];
+            const searchInput = document.getElementById('search-input');
+            const acList = document.getElementById('autocomplete-list');
+            let selIdx = -1;
+
+            function updateAutocomplete() {
+                allLocs = Object.keys(markerMap).sort();
+            }
+            function showSugg(q) {
+                acList.innerHTML = ''; selIdx = -1;
+                if (!q) return;
+                allLocs.filter(l => l.includes(q)).slice(0, 10).forEach(loc => {
+                    const item = document.createElement('div');
+                    item.className = 'autocomplete-item';
+                    item.textContent = loc;
+                    item.addEventListener('mousedown', e => { e.preventDefault(); selectLoc(loc); });
+                    acList.appendChild(item);
+                });
+            }
+            function selectLoc(loc) {
+                if (!loc) return;
+                searchInput.value = loc;
+                acList.innerHTML = '';
+                const m = markerMap[loc];
+                if (m) { map.setView(m.getLatLng(), 13); m.openPopup(); }
+            }
+            searchInput.addEventListener('input', () => showSugg(searchInput.value.trim()));
+            searchInput.addEventListener('keydown', e => {
+                const items = acList.querySelectorAll('.autocomplete-item');
+                if (e.key === 'ArrowDown') { e.preventDefault(); selIdx = Math.min(selIdx + 1, items.length - 1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); selIdx = Math.max(selIdx - 1, 0); }
+                else if (e.key === 'Enter') { selectLoc(selIdx >= 0 ? items[selIdx]?.textContent : items[0]?.textContent); return; }
+                else if (e.key === 'Escape') { acList.innerHTML = ''; return; }
+                items.forEach((el, i) => el.classList.toggle('selected', i === selIdx));
             });
+            searchInput.addEventListener('blur', () => setTimeout(() => acList.innerHTML = '', 150));
+            map.on('click', () => acList.innerHTML = '');
+
+            document.getElementById('threat-0').addEventListener('change', updateDisplay);
+            document.getElementById('threat-5').addEventListener('change', updateDisplay);
+
+            updateDisplay();
         }
 
-        redrawLabels();
-        map.on('zoomend', redrawLabels);
-
-        // ---- Autocomplete search ----
-        const allLocs = Object.keys(markerMap).sort();
-        const searchInput = document.getElementById('search-input');
-        const acList = document.getElementById('autocomplete-list');
-        let selIdx = -1;
-
-        function showSugg(q) {
-            acList.innerHTML = ''; selIdx = -1;
-            if (!q) return;
-            allLocs.filter(l => l.includes(q)).slice(0,10).forEach(loc => {
-                const item = document.createElement('div');
-                item.className = 'autocomplete-item';
-                item.textContent = loc;
-                item.addEventListener('mousedown', e => { e.preventDefault(); selectLoc(loc); });
-                acList.appendChild(item);
-            });
-        }
-        function selectLoc(loc) {
-            if (!loc) return;
-            searchInput.value = loc;
-            acList.innerHTML = '';
-            const m = markerMap[loc];
-            if (m) { map.setView(m.getLatLng(), 13); m.openPopup(); }
-        }
-        searchInput.addEventListener('input', () => showSugg(searchInput.value.trim()));
-        searchInput.addEventListener('keydown', e => {
-            const items = acList.querySelectorAll('.autocomplete-item');
-            if (e.key === 'ArrowDown') { e.preventDefault(); selIdx = Math.min(selIdx+1, items.length-1); }
-            else if (e.key === 'ArrowUp') { e.preventDefault(); selIdx = Math.max(selIdx-1, 0); }
-            else if (e.key === 'Enter') { selectLoc(selIdx>=0 ? items[selIdx]?.textContent : items[0]?.textContent); return; }
-            else if (e.key === 'Escape') { acList.innerHTML=''; return; }
-            items.forEach((el,i) => el.classList.toggle('selected', i===selIdx));
-        });
-        searchInput.addEventListener('blur', () => setTimeout(() => acList.innerHTML='', 150));
-        map.on('click', () => acList.innerHTML='');
-
-        if (!locDataArr.length)
-            L.popup().setLatLng([31.5,34.75]).setContent('לא נמצאו אזעקות.').openOn(map);
-    }
-
-    initMap();
-</script>
+        initMap();
+    </script>
 </body>
+
 </html>
