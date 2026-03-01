@@ -313,9 +313,36 @@
             if (new URLSearchParams(window.location.search).has('notitle'))
                 document.getElementById('floating-title').style.display = 'none';
 
+            const isEn = new URLSearchParams(window.location.search).has('en');
+            if (isEn) {
+                document.documentElement.lang = 'en';
+                document.documentElement.dir = 'ltr';
+                document.getElementById('search-container').style.display = 'none';
+
+                // Translate Title & Subtitle
+                const titleNode = document.getElementById('floating-title');
+                if (titleNode.firstChild.nodeType === 3) titleNode.firstChild.textContent = 'Alarms during the 2026 Iran campaign ';
+                const subtitle = titleNode.querySelector('.subtitle');
+                subtitle.innerHTML = 'By <a href="https://oct7database.com" target="_blank">oct7database.com</a> · Home Front Command data via <a href="https://www.tzevaadom.co.il/historical" target="_blank">Tzevaadom</a>';
+
+                // Translate Filter
+                document.querySelector('#threat-selector .title').textContent = 'Filter by Threat';
+                const labels = document.querySelectorAll('#threat-selector label');
+                labels[0].childNodes[1].textContent = ' Rockets';
+                labels[1].childNodes[1].textContent = ' Hostile Aircraft';
+            }
+
             const map = L.map('map').setView([31.5, 34.75], 8);
-            L.tileLayer('https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png', {
-                attribution: '© המרכז למיפוי ישראל www.govmap.gov.il', maxZoom: 18
+
+            const tileUrl = isEn
+                ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+                : 'https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png';
+            const attribution = isEn
+                ? '&copy; OpenStreetMap contributors &copy; CARTO'
+                : '© המרכז למיפוי ישראל www.govmap.gov.il';
+
+            L.tileLayer(tileUrl, {
+                attribution: attribution, maxZoom: 18
             }).addTo(map);
 
             let markerLayer = L.layerGroup().addTo(map);
@@ -429,7 +456,7 @@
                 div.innerHTML = '';
                 const title = document.createElement('div');
                 title.style.cssText = 'font-size:11px; color:#445; margin-bottom:2px; white-space:nowrap;';
-                title.textContent = 'מספר אזעקות';
+                title.textContent = isEn ? 'Number of Alarms' : 'מספר אזעקות';
 
                 const barH = 140, barW = 14;
                 const bc = document.createElement('canvas');
