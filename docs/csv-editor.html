@@ -680,11 +680,13 @@ function selectCell(ri, ci) {
 
 function onCellSingleClick(e) {
   const td = e.currentTarget;
+  // If clicking on the cell that's currently being edited, do nothing
+  if (activeCell && activeCell.td === td) return;
   if (activeCell) {
-    // clicking another cell while editing: commit then select new cell
-    commitCell(activeCell);
+    // mousedown listener in openCellEditor already committed; just in case:
+    if (!activeCell.committed) commitCell(activeCell);
   }
-  if (activeCell) return; // still editing (shouldn't happen)
+  if (activeCell) return;
   const ri = parseInt(td.dataset.ri);
   const ci = parseInt(td.dataset.ci);
   selectCell(ri, ci);
@@ -715,19 +717,56 @@ function openCellEditor(td, ri, ci) {
   td.appendChild(ta);
   ta.focus();
   ta.select();
-  activeCell = { td, ri, ci, ta };
+  const ac = { td, ri, ci, ta, committed: false };
+  activeCell = ac;
   selectedCell = null;
   lastFocusedCell = { ri, ci };
 
-  ta.addEventListener('blur', () => commitCell(activeCell));
+  // Use mousedown on document to detect clicks elsewhere *before* blur fires,
+  // so we can commit cleanly without the blur/innerHTML race condition.
+  function onDocMouseDown(e) {
+    if (!ta.contains(e.target)) {
+      document.removeEventListener('mousedown', onDocMouseDown, true);
+      commitCell(ac);
+    }
+  }
+  document.addEventListener('mousedown', onDocMouseDown, true);
+
+  ta.addEventListener('blur', () => {
+    // Small delay: if mousedown already committed, skip. Otherwise commit now
+    // (e.g. focus moved away via Tab or programmatic focus change).
+    setTimeout(() => {
+      if (activeCell === ac) commitCell(ac);
+      document.removeEventListener('mousedown', onDocMouseDown, true);
+    }, 0);
+  });
+
+  // Throttled RTL detection - only check periodically, not on every keydown
+  let rtlCheckTimer = null;
+  ta.addEventListener('input', () => {
+    clearTimeout(rtlCheckTimer);
+    rtlCheckTimer = setTimeout(() => {
+      if (hasHebrew(ta.value)) ta.classList.add('rtl-content');
+      else ta.classList.remove('rtl-content');
+    }, 150);
+  });
+
   ta.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); commitCell(activeCell); }
-    if (ev.key === 'Escape') { ev.preventDefault(); cancelCell(activeCell); }
-    if (ev.key === 'Tab') { ev.preventDefault(); const { ri: r, ci: c } = activeCell; commitCell(activeCell); moveCell(r, c, ev.shiftKey ? -1 : 1); }
-    // auto-detect RTL
-    const val = ta.value + (ev.key.length === 1 ? ev.key : '');
-    if (hasHebrew(val)) ta.classList.add('rtl-content');
-    else ta.classList.remove('rtl-content');
+    if (ev.key === 'Enter' && !ev.shiftKey) {
+      ev.preventDefault();
+      document.removeEventListener('mousedown', onDocMouseDown, true);
+      commitCell(ac);
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      document.removeEventListener('mousedown', onDocMouseDown, true);
+      cancelCell(ac);
+    } else if (ev.key === 'Tab') {
+      ev.preventDefault();
+      const { ri: r, ci: c } = ac;
+      document.removeEventListener('mousedown', onDocMouseDown, true);
+      commitCell(ac);
+      moveCell(r, c, ev.shiftKey ? -1 : 1);
+    }
   });
 }
 
@@ -735,7 +774,8 @@ function openCellEditor(td, ri, ci) {
 function onCellClick(e) { onCellSingleClick(e); }
 
 function commitCell(ac) {
-  if (!ac) return;
+  if (!ac || ac.committed) return;
+  ac.committed = true;
   const { td, ri, ci, ta } = ac;
   const newVal = ta.value;
   const allRows = [...data, ...addedRows];

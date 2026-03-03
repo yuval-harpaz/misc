@@ -5,3 +5,6 @@ data/*_*-*.csv
 *geojson
 tmp*
 */tmp*
+docs/gas-csv-editor/
+
+
