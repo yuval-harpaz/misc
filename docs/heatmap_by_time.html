@@ -405,8 +405,11 @@
             });
 
             const isEn = new URLSearchParams(window.location.search).has('en');
+            /*
+            // Hide the floating title if the 'notitle' URL parameter is present
             if (new URLSearchParams(window.location.search).has('notitle'))
                 document.getElementById('floating-title').style.display = 'none';
+            */
 
             if (isEn) {
                 document.documentElement.lang = 'en';
