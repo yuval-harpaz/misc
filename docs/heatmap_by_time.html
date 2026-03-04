@@ -50,7 +50,7 @@
             gap: 12px;
         }
 
-        #calendar-icon {
+        .title-icon {
             cursor: pointer;
             font-size: 1.1em;
             transition: transform 0.2s, filter 0.2s;
@@ -58,7 +58,7 @@
             align-items: center;
         }
 
-        #calendar-icon:hover {
+        .title-icon:hover {
             transform: scale(1.1);
             filter: drop-shadow(0 0 5px #7eb8ff);
         }
@@ -223,41 +223,82 @@
             background: #f0f5ff;
         }
 
-        #threat-selector {
-            position: absolute;
-            top: 95px;
-            right: 20px;
-            z-index: 1000;
-            background: rgba(10, 10, 20, 0.85);
-            color: #fff;
-            padding: 12px 18px;
+        /* Filter Floating Panel Styles */
+        #filter-dropdown {
+            position: fixed;
+            top: 70px;
+            left: 20px;
+            /* default, repositioned by JS */
+            background: rgba(15, 15, 30, 0.95);
             border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-            direction: rtl;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 12px 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            width: 150px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1200;
+            backdrop-filter: blur(15px);
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
         }
 
-        #threat-selector .title {
-            font-weight: 600;
-            margin-bottom: 10px;
-            font-size: 0.9em;
-            color: #aac4ff;
-            border-bottom: 1px solid rgba(170, 196, 255, 0.3);
-            padding-bottom: 6px;
-        }
-
-        #threat-selector label {
+        #filter-dropdown.show {
             display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 8px 0;
-            cursor: pointer;
         }
 
-        #threat-selector input[type="checkbox"] {
+        #filter-dropdown.dragging {
+            cursor: grabbing;
+            opacity: 0.92;
+        }
+
+        #filter-close {
+            position: absolute;
+            top: 5px;
+            left: 5px;
             width: 18px;
             height: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            color: #aac4ff;
+            font-size: 12px;
+            line-height: 18px;
+            text-align: center;
+            cursor: pointer;
+            padding: 0;
+            transition: background 0.2s;
+        }
+
+        #filter-close:hover {
+            background: rgba(255, 80, 80, 0.4);
+            color: #fff;
+        }
+
+        .filter-section-title {
+            font-size: 0.8em;
+            color: #aac4ff;
+            margin-bottom: 2px;
+            border-bottom: 1px solid rgba(170, 196, 255, 0.2);
+            padding-bottom: 3px;
+            text-align: right;
+        }
+
+        .filter-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0;
+            cursor: pointer;
+            font-size: 0.85em;
+            color: #eee;
+        }
+
+        .filter-group input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
             accent-color: #7eb8ff;
         }
 
@@ -278,12 +319,6 @@
                 width: 92%;
             }
 
-            #threat-selector {
-                bottom: 20px;
-                top: auto;
-                right: 10px;
-            }
-
             #search-container {
                 top: 85px;
                 width: 220px;
@@ -295,7 +330,11 @@
 <body>
     <div id="floating-title">
         <div class="title-top">
-            <span id="calendar-icon" title="סינון לפי זמן">📅</span>
+            <span id="filter-icon" class="title-icon" title="סינון"><svg width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg></span>
+            <span id="calendar-icon" class="title-icon" title="סינון לפי זמן">📅</span>
             <span id="main-title-text">אזעקות לפי זמן</span>
         </div>
         <div class="subtitle">
@@ -322,6 +361,21 @@
                 </div>
             </div>
         </div>
+
+    </div>
+
+    <!-- Filter Floating Panel -->
+    <div id="filter-dropdown" dir="rtl">
+        <button id="filter-close">&times;</button>
+        <div class="filter-section-title">סוג איום</div>
+        <div class="filter-group" id="threat-group">
+            <label><input type="checkbox" value="0" checked id="threat-0"> רקטות</label>
+            <label><input type="checkbox" value="5" checked id="threat-5"> כלי טיס עויין</label>
+        </div>
+        <div class="filter-section-title" id="origin-section-title">מקור</div>
+        <div class="filter-group" id="origin-group">
+            <!-- Origin checkboxes will be injected dynamically -->
+        </div>
     </div>
 
     <div id="search-container">
@@ -329,11 +383,7 @@
         <div id="autocomplete-list"></div>
     </div>
 
-    <div id="threat-selector">
-        <div class="title">סינון לפי איום</div>
-        <label><input type="checkbox" value="0" checked id="threat-0"> רקטות</label>
-        <label><input type="checkbox" value="5" checked id="threat-5"> כלי טיס עויין</label>
-    </div>
+
 
     <div id="map"></div>
 
@@ -419,16 +469,18 @@
                 document.getElementById('search-container').style.display = 'none';
                 document.getElementById('main-title-text').textContent = 'Alarms by Time';
                 document.querySelector('.subtitle').innerHTML = 'By <a href="https://oct7database.com" target="_blank">oct7database.com</a> · Home Front Command data via <a href="https://www.tzevaadom.co.il/historical" target="_blank">Tzevaadom</a>';
-                document.querySelector('#threat-selector .title').textContent = 'Filter by Threat';
-                const threatLabels = document.querySelectorAll('#threat-selector label');
+                const threatLabels = document.querySelectorAll('#threat-group label');
                 threatLabels[0].childNodes[1].textContent = ' Rockets';
                 threatLabels[1].childNodes[1].textContent = ' Hostile Aircraft';
 
                 document.querySelectorAll('.dropdown-section-title')[0].textContent = 'Campaigns';
                 document.querySelectorAll('.dropdown-section-title')[1].textContent = 'Custom Range';
+                document.querySelectorAll('.filter-section-title')[0].textContent = 'Threat Type';
+                document.getElementById('origin-section-title').textContent = 'Origin';
                 document.querySelectorAll('.date-input-group label')[0].textContent = 'From:';
                 document.querySelectorAll('.date-input-group label')[1].textContent = 'To:';
                 document.getElementById('calendar-icon').title = 'Filter by Time';
+                document.getElementById('filter-icon').title = 'Filters';
             }
 
             const map = L.map('map').setView([31.5, 34.75], 8);
@@ -467,6 +519,50 @@
                 return `rgb(160,20,20)`;
             }
 
+            function getSelectedOrigins() {
+                const checks = document.querySelectorAll('#origin-group input[type="checkbox"]');
+                const selected = [];
+                checks.forEach(cb => { if (cb.checked) selected.push(cb.value); });
+                return selected;
+            }
+
+            function rebuildOriginCheckboxes() {
+                // Compute origins present in the current time window (regardless of threat filter)
+                const originsInWindow = new Set();
+                alarms.forEach(a => {
+                    const d = parseDate(a.time);
+                    if (!d || isNaN(d)) return;
+                    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    if (ds >= DATE_FROM && ds <= (DATE_TO || '9999-12-31')) {
+                        const origin = (a.origin && String(a.origin).trim()) || '';
+                        originsInWindow.add(origin);
+                    }
+                });
+                const originGroup = document.getElementById('origin-group');
+                // Remember currently checked origins
+                const prevChecked = new Set(getSelectedOrigins());
+                const isFirstBuild = originGroup.children.length === 0;
+                originGroup.innerHTML = '';
+                const sortedOrigins = [...originsInWindow].sort((a, b) => {
+                    if (a === '') return 1;
+                    if (b === '') return -1;
+                    return a.localeCompare(b);
+                });
+                sortedOrigins.forEach(origin => {
+                    const label = document.createElement('label');
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = origin;
+                    // On first build, check all; otherwise preserve previous state
+                    cb.checked = isFirstBuild ? true : prevChecked.has(origin);
+                    cb.onchange = updateDisplay;
+                    const displayName = origin || (isEn ? 'unlabeled' : 'ללא תווית');
+                    label.appendChild(cb);
+                    label.appendChild(document.createTextNode(' ' + displayName));
+                    originGroup.appendChild(label);
+                });
+            }
+
             function updateDisplay() {
                 markerLayer.clearLayers();
                 markerMap = {};
@@ -475,11 +571,17 @@
                 if (document.getElementById('threat-0').checked) selectedThreats.push(0);
                 if (document.getElementById('threat-5').checked) selectedThreats.push(5);
 
+                const selectedOrigins = new Set(getSelectedOrigins());
+
                 const filteredAlarms = alarms.filter(a => {
                     const d = parseDate(a.time);
                     if (!d || isNaN(d)) return false;
                     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    return ds >= DATE_FROM && ds <= (DATE_TO || '9999-12-31') && selectedThreats.includes(a.threat);
+                    if (ds < DATE_FROM || ds > (DATE_TO || '9999-12-31')) return false;
+                    if (!selectedThreats.includes(a.threat)) return false;
+                    const origin = (a.origin && String(a.origin).trim()) || '';
+                    if (!selectedOrigins.has(origin)) return false;
+                    return true;
                 });
 
                 const locTimes = {};
@@ -566,7 +668,9 @@
 
             // UI Elements
             const calendarIcon = document.getElementById('calendar-icon');
+            const filterIcon = document.getElementById('filter-icon');
             const dateDropdown = document.getElementById('date-dropdown');
+            const filterDropdown = document.getElementById('filter-dropdown');
             const campaignList = document.getElementById('campaign-list');
             const dateFromInput = document.getElementById('date-from');
             const dateToInput = document.getElementById('date-to');
@@ -589,6 +693,8 @@
                     DATE_TO = camp.end || new Date().toISOString().slice(0, 10);
                     dateFromInput.value = DATE_FROM;
                     dateToInput.value = DATE_TO;
+                    dateDropdown.classList.remove('show');
+                    rebuildOriginCheckboxes();
                     updateDisplay();
                 };
                 campaignList.appendChild(btn);
@@ -601,8 +707,65 @@
 
             calendarIcon.onclick = (e) => {
                 e.stopPropagation();
+                filterDropdown.classList.remove('show');
                 dateDropdown.classList.toggle('show');
             };
+
+            filterIcon.onclick = (e) => {
+                e.stopPropagation();
+                dateDropdown.classList.remove('show');
+                const wasOpen = filterDropdown.classList.contains('show');
+                filterDropdown.classList.toggle('show');
+                if (!wasOpen) {
+                    // Position just to the left of the title bar
+                    const titleRect = document.getElementById('floating-title').getBoundingClientRect();
+                    const panelW = filterDropdown.offsetWidth;
+                    filterDropdown.style.left = (titleRect.left - panelW - 10) + 'px';
+                    filterDropdown.style.top = titleRect.top + 'px';
+                    // Clamp: if it would go off-screen left, place at 10px
+                    if (parseFloat(filterDropdown.style.left) < 10) {
+                        filterDropdown.style.left = '10px';
+                    }
+                }
+            };
+
+            document.getElementById('filter-close').onclick = (e) => {
+                e.stopPropagation();
+                filterDropdown.classList.remove('show');
+            };
+
+            // Drag logic for filter panel
+            (function initDrag() {
+                let isDragging = false, startX, startY, startLeft, startTop;
+                function onStart(e) {
+                    // Don't drag when interacting with inputs/labels
+                    if (e.target.closest('label, input, button, .filter-group')) return;
+                    isDragging = true;
+                    filterDropdown.classList.add('dragging');
+                    const pos = e.touches ? e.touches[0] : e;
+                    startX = pos.clientX; startY = pos.clientY;
+                    const rect = filterDropdown.getBoundingClientRect();
+                    startLeft = rect.left; startTop = rect.top;
+                    e.preventDefault();
+                }
+                function onMove(e) {
+                    if (!isDragging) return;
+                    const pos = e.touches ? e.touches[0] : e;
+                    const dx = pos.clientX - startX, dy = pos.clientY - startY;
+                    filterDropdown.style.left = (startLeft + dx) + 'px';
+                    filterDropdown.style.top = (startTop + dy) + 'px';
+                }
+                function onEnd() {
+                    isDragging = false;
+                    filterDropdown.classList.remove('dragging');
+                }
+                filterDropdown.addEventListener('mousedown', onStart);
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+                filterDropdown.addEventListener('touchstart', onStart, { passive: false });
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+            })();
 
             document.addEventListener('click', (e) => {
                 if (!dateDropdown.contains(e.target) && e.target !== calendarIcon) {
@@ -613,11 +776,13 @@
             dateFromInput.onchange = () => {
                 DATE_FROM = dateFromInput.value;
                 document.querySelectorAll('.campaign-btn').forEach(b => b.classList.remove('active'));
+                rebuildOriginCheckboxes();
                 updateDisplay();
             };
             dateToInput.onchange = () => {
                 DATE_TO = dateToInput.value;
                 document.querySelectorAll('.campaign-btn').forEach(b => b.classList.remove('active'));
+                rebuildOriginCheckboxes();
                 updateDisplay();
             };
 
@@ -645,6 +810,7 @@
             document.getElementById('threat-0').onchange = updateDisplay;
             document.getElementById('threat-5').onchange = updateDisplay;
 
+            rebuildOriginCheckboxes();
             updateDisplay();
         }
 
