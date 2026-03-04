@@ -556,7 +556,23 @@
                     // On first build, check all; otherwise preserve previous state
                     cb.checked = isFirstBuild ? true : prevChecked.has(origin);
                     cb.onchange = updateDisplay;
-                    const displayName = origin || (isEn ? 'unlabeled' : 'ללא תווית');
+
+                    let displayName = origin || (isEn ? 'unlabeled' : 'ללא תווית');
+                    if (!isEn) {
+                        const translations = {
+                            'FA': 'אזעקת שווא',
+                            'Iraq': 'עיראק',
+                            'Yemen': 'תימן',
+                            'Lebanon': 'לבנון',
+                            'Gaza': 'עזה',
+                            'Iran': 'איראן',
+                            'Syria': 'סוריה'
+                        };
+                        if (translations[origin]) {
+                            displayName = translations[origin];
+                        }
+                    }
+
                     label.appendChild(cb);
                     label.appendChild(document.createTextNode(' ' + displayName));
                     originGroup.appendChild(label);
