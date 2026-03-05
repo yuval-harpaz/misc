@@ -241,27 +241,6 @@
             color: var(--accent-color);
         }
 
-        /* Chart Area Layout */
-        #main-content {
-            flex: 1;
-            display: flex;
-            gap: 20px;
-            min-height: 0;
-        }
-
-        #chart-area {
-            flex: 1;
-            background: var(--panel-bg);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            min-width: 0;
-        }
-
         /* Vertical Stats Sidebar */
         #stats-sidebar {
             width: 160px;
@@ -294,9 +273,7 @@
         }
 
         #view-toggle-container {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 20px;
+            display: none;
         }
 
         .btn-toggle {
@@ -326,6 +303,50 @@
             position: relative;
             min-height: 0;
             /* Important for Chart.js in flexbox */
+        }
+
+        /* Two-chart layout */
+        #charts-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        #main-content {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            min-height: 0;
+        }
+
+        .chart-section {
+            flex: 1;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .chart-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #94a3b8;
         }
 
         @media (max-width: 900px) {
@@ -378,12 +399,6 @@
                     דרך <a href="https://www.tzevaadom.co.il/historical" target="_blank">צופר</a>
                 </div>
             </div>
-            <div id="view-toggle-container">
-                <div class="btn-toggle">
-                    <div class="toggle-option active" data-view="bar" id="view-bar">גרף עמודות</div>
-                    <div class="toggle-option" data-view="clock" id="view-clock">שעון 24ש</div>
-                </div>
-            </div>
         </header>
 
         <main>
@@ -426,9 +441,33 @@
             </div>
 
             <div id="main-content">
-                <div id="chart-area">
-                    <div class="chart-container">
-                        <canvas id="mainChart"></canvas>
+                <div id="charts-column">
+                    <!-- 24-Hour Distribution Chart -->
+                    <div class="chart-section">
+                        <div class="chart-section-header">
+                            <div class="chart-section-title">התפלגות לפי שעה (24 שעות)</div>
+                            <div class="btn-toggle">
+                                <div class="toggle-option active" id="view-bar">גרף עמודות</div>
+                                <div class="toggle-option" id="view-clock">שעון 24ש</div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="mainChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Within-the-Hour Distribution Chart -->
+                    <div class="chart-section">
+                        <div class="chart-section-header">
+                            <div class="chart-section-title">התפלגות בתוך השעה (דקות)</div>
+                            <div class="btn-toggle">
+                                <div class="toggle-option active" id="view-min-bar">גרף עמודות</div>
+                                <div class="toggle-option" id="view-min-clock">שעון 60 דקות</div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="minuteChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
@@ -440,6 +479,10 @@
                     <div class="stat-card">
                         <div class="stat-label">שעת שיא</div>
                         <div class="stat-value" id="stat-peak">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">דקת שיא</div>
+                        <div class="stat-value" id="stat-peak-min">-</div>
                     </div>
                 </div>
             </div>
@@ -467,8 +510,11 @@
         let DATE_TO = null;
         let currentAlarms = [];
         let mainChart = null;
+        let minuteChart = null;
         let currentView = 'bar'; // 'bar' or 'clock'
+        let currentMinView = 'bar'; // 'bar' or 'clock'
         let cachedChartData = Array(24).fill(0);
+        let cachedMinuteData = Array(60).fill(0);
 
         // Robust Time Parsing
         function parseDate(str) {
@@ -528,16 +574,27 @@
             // Origin Dropdown
             document.getElementById('origin-select').onchange = updateDisplay;
 
-            // View Toggle
+            // View Toggle (24h chart)
             document.getElementById('view-bar').onclick = () => switchView('bar');
             document.getElementById('view-clock').onclick = () => switchView('clock');
+
+            // View Toggle (minute chart)
+            document.getElementById('view-min-bar').onclick = () => switchMinView('bar');
+            document.getElementById('view-min-clock').onclick = () => switchMinView('clock');
         }
 
         function switchView(view) {
             currentView = view;
-            document.querySelectorAll('.toggle-option').forEach(opt => opt.classList.remove('active'));
+            document.querySelectorAll('#view-bar, #view-clock').forEach(opt => opt.classList.remove('active'));
             document.getElementById('view-' + view).classList.add('active');
             renderChart(cachedChartData);
+        }
+
+        function switchMinView(view) {
+            currentMinView = view;
+            document.querySelectorAll('#view-min-bar, #view-min-clock').forEach(opt => opt.classList.remove('active'));
+            document.getElementById('view-min-' + view).classList.add('active');
+            renderMinuteChart(cachedMinuteData);
         }
 
         async function loadData() {
@@ -660,13 +717,27 @@
             });
             cachedChartData = hourCounts;
 
+            // Aggregate by Minute within the hour
+            const minuteCounts = Array(60).fill(0);
+            filteredForChart.forEach(a => {
+                const d = parseDate(a.time);
+                if (!d || isNaN(d)) return;
+                const minute = parseInt(new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', minute: '2-digit' }).format(d));
+                if (minute >= 0 && minute < 60) minuteCounts[minute]++;
+            });
+            cachedMinuteData = minuteCounts;
+
             // Update Stats
             document.getElementById('stat-total').textContent = totalMatchingSet.length.toLocaleString();
 
             const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
             document.getElementById('stat-peak').textContent = filteredForChart.length > 0 ? `${peakHour}:00` : '-';
 
+            const peakMinute = minuteCounts.indexOf(Math.max(...minuteCounts));
+            document.getElementById('stat-peak-min').textContent = filteredForChart.length > 0 ? `דקה ${peakMinute}` : '-';
+
             renderChart(hourCounts);
+            renderMinuteChart(minuteCounts);
         }
 
         function renderChart(data) {
@@ -721,6 +792,72 @@
             };
 
             mainChart = new Chart(ctx, chartConfig);
+        }
+
+        function renderMinuteChart(data) {
+            const ctx = document.getElementById('minuteChart').getContext('2d');
+            const labels = Array.from({ length: 60 }, (_, i) => i % 5 === 0 ? `:${String(i).padStart(2, '0')}` : '');
+
+            if (minuteChart) minuteChart.destroy();
+
+            const chartConfig = {
+                type: currentMinView === 'bar' ? 'bar' : 'polarArea',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'מספר אזעקות',
+                        data: data || Array(60).fill(0),
+                        backgroundColor: 'rgba(129, 140, 248, 0.6)',
+                        borderColor: '#818cf8',
+                        borderWidth: currentMinView === 'bar' ? 2 : 1,
+                        borderRadius: currentMinView === 'bar' ? 4 : 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => `דקה :${String(items[0].dataIndex).padStart(2, '0')}`,
+                                label: (context) => `אזעקות: ${context.raw}`
+                            }
+                        }
+                    },
+                    scales: currentMinView === 'bar' ? {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                color: '#94a3b8',
+                                maxRotation: 0,
+                                callback: function(val, idx) {
+                                    return idx % 5 === 0 ? `:${String(idx).padStart(2, '0')}` : '';
+                                }
+                            }
+                        }
+                    } : {
+                        r: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            angleLines: { color: 'rgba(255,255,255,0.1)' },
+                            pointLabels: {
+                                display: true,
+                                color: '#94a3b8',
+                                font: { size: 9 },
+                                callback: (label, idx) => idx % 5 === 0 ? label : ''
+                            },
+                            ticks: { display: false }
+                        }
+                    }
+                }
+            };
+
+            minuteChart = new Chart(ctx, chartConfig);
         }
 
         initUI();
