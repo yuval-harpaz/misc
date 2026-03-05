@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="icon" href="logo.png">
     <title>התפלגות אזעקות - ציר זמן</title>
     <!-- Chart.js -->
@@ -48,6 +48,19 @@
             background: rgba(15, 23, 42, 0.5);
             border-left: 1px solid var(--border-color);
             border-right: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 900px) {
+            body {
+                overflow-y: auto;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .page-container {
+                height: auto;
+                min-height: 100vh;
+            }
         }
 
         /* Header */
@@ -318,9 +331,10 @@
         @media (max-width: 900px) {
             main {
                 flex-direction: column;
-                overflow-y: auto;
-                /* Add extra padding for system nav buttons */
-                padding-bottom: 200px;
+                overflow-y: visible;
+                /* Extra padding so last elements clear Samsung virtual nav buttons */
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+                margin-bottom: 120px;
             }
 
             #filter-panel {
