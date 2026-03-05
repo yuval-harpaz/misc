@@ -103,6 +103,8 @@
             gap: 24px;
             /* Allow suggestions to pop out */
             overflow: visible;
+            position: relative;
+            z-index: 100;
         }
 
         .filter-section {
@@ -203,7 +205,7 @@
             border-radius: 12px;
             max-height: 250px;
             overflow-y: auto;
-            z-index: 2000;
+            z-index: 5000;
             display: none;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
         }
@@ -326,6 +328,8 @@
                 flex-shrink: 0;
                 /* Avoid clipping location dropdown */
                 overflow: visible;
+                /* Ensure it stays above the chart area */
+                z-index: 1000;
             }
 
             #main-content {
