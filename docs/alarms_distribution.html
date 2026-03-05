@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>התפלגות אזעקות - ציר זמן</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;800&family=Outfit:wght@300;400;600;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --accent-color: #38bdf8;
+            --text-color: #f8fafc;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Assistant', 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .page-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: rgba(15, 23, 42, 0.5);
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+        }
+
+        /* Header */
+        header {
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 100;
+        }
+
+        .logo-section h1 {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .subtitle a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        /* Layout */
+        main {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        /* Filter Panel */
+        #filter-panel {
+            width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+        }
+
+        .filter-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .filter-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Radio Styling */
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .radio-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .radio-item input {
+            accent-color: var(--accent-color);
+            width: 16px;
+            height: 16px;
+        }
+
+        .radio-item.active {
+            background: rgba(56, 189, 248, 0.1);
+            border-color: rgba(56, 189, 248, 0.3);
+            color: var(--accent-color);
+        }
+
+        /* Dropdown Styling */
+        select {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 12px;
+            border-radius: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+            width: 100%;
+        }
+
+        select option {
+            background: #1e293b;
+            color: var(--text-color);
+        }
+
+        /* Chart Area Layout */
+        #main-content {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            min-height: 0;
+        }
+
+        #chart-area {
+            flex: 1;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-width: 0;
+        }
+
+        /* Vertical Stats Sidebar */
+        #stats-sidebar {
+            width: 160px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 16px 12px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--accent-color);
+        }
+
+        #view-toggle-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .btn-toggle {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .toggle-option {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-option.active {
+            background: var(--accent-color);
+            color: #0f172a;
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+            /* Important for Chart.js in flexbox */
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            main {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            #filter-panel {
+                width: 100%;
+                flex-shrink: 0;
+            }
+
+            #main-content {
+                flex-direction: column;
+                flex-shrink: 0;
+            }
+
+            #stats-sidebar {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .stat-card {
+                flex: 1;
+                min-width: 100px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="page-container">
+
+        <header>
+            <div class="logo-section">
+                <h1 id="main-title">התפלגות אזעקות</h1>
+                <div class="subtitle">
+                    הוכן על ידי <a href="https://oct7database.com" target="_blank">oct7database.com</a> · נתוני פיקוד
+                    העורף
+                    דרך <a href="https://www.tzevaadom.co.il/historical" target="_blank">צופר</a>
+                </div>
+            </div>
+            <div id="view-toggle-container">
+                <div class="btn-toggle">
+                    <div class="toggle-option active" data-view="bar" id="view-bar">גרף עמודות</div>
+                    <div class="toggle-option" data-view="clock" id="view-clock">שעון 24ש</div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div id="filter-panel">
+                <!-- Time Selection -->
+                <div class="filter-section">
+                    <div class="filter-title">📅 טווח זמן</div>
+                    <select id="campaign-select">
+                        <!-- Campaigns injected here -->
+                    </select>
+                </div>
+
+                <!-- Threat Type Selection (Single Select) -->
+                <div class="filter-section">
+                    <div class="filter-title">🚀 סוג איום</div>
+                    <div class="radio-group" id="threat-group">
+                        <label class="radio-item active">
+                            <input type="radio" name="threat" value="0" checked> רקטות
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" name="threat" value="5"> כלי טיס עויין
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Origin Selection (Single Select) -->
+                <div class="filter-section">
+                    <div class="filter-title">🚩 מקור</div>
+                    <div class="radio-group" id="origin-group">
+                        <!-- Origins injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="main-content">
+                <div id="chart-area">
+                    <div class="chart-container">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="stats-sidebar">
+                    <div class="stat-card">
+                        <div class="stat-label">סה"כ אזעקות</div>
+                        <div class="stat-value" id="stat-total">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">שעת שיא</div>
+                        <div class="stat-value" id="stat-peak">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">ממוצע לשעה</div>
+                        <div class="stat-value" id="stat-avg">0</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const GITHUB_RAW = 'https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/';
+
+        const campaigns = [
+            { name: '24 שעות אחרונות', start: 'last24h', end: null },
+            { name: 'שאגת הארי', start: '2026-02-28', end: null },
+            { name: 'עם כלביא', start: '2025-06-13', end: '2025-06-24' },
+            { name: 'חיצי הצפון', start: '2024-09-19', end: '2024-11-27' },
+            { name: 'מגן ברזל', start: '2024-04-13', end: '2024-04-14' },
+            { name: 'חרבות ברזל', start: '2023-10-07', end: null },
+            { name: '7 באוקטובר', start: '2023-10-07', end: '2023-10-07' },
+            { name: 'מגן וחץ', start: '2023-05-09', end: '2023-05-13' },
+            { name: 'עלות השחר', start: '2022-08-05', end: '2022-08-08' },
+            { name: 'שומר החומות', start: '2021-05-10', end: '2021-05-21' },
+            { name: 'חגורה שחורה', start: '2019-11-12', end: '2019-11-14' },
+        ];
+
+        let DATE_FROM = campaigns[1].start;
+        let DATE_TO = null;
+        let currentAlarms = [];
+        let mainChart = null;
+        let currentView = 'bar'; // 'bar' or 'clock'
+        let cachedChartData = Array(24).fill(0);
+
+        // Robust Time Parsing
+        function parseDate(str) {
+            if (!str) return null;
+            const iso = str.replace(' ', 'T');
+            if (iso.includes('+') || iso.includes('Z')) return new Date(iso);
+            return new Date(iso + "+02:00"); // Force Israel Time (+02:00)
+        }
+
+        async function fetchCSV(f) {
+            const r = await fetch(GITHUB_RAW + f);
+            const text = await r.text();
+            return new Promise(res => Papa.parse(text, { header: true, dynamicTyping: true, complete: d => res(d.data) }));
+        }
+
+        function initUI() {
+            // Campaigns Dropdown
+            const select = document.getElementById('campaign-select');
+            campaigns.forEach((camp, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = camp.name;
+                if (camp.start === '2026-02-28') opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            select.onchange = () => {
+                const camp = campaigns[select.value];
+                DATE_FROM = camp.start;
+                DATE_TO = camp.end;
+                updateDisplay();
+            };
+
+            // Threat Type Radios
+            document.querySelectorAll('input[name="threat"]').forEach(radio => {
+                radio.onchange = (e) => {
+                    document.querySelectorAll('#threat-group .radio-item').forEach(l => l.classList.remove('active'));
+                    e.target.parentElement.classList.add('active');
+                    updateDisplay();
+                };
+            });
+
+            // View Toggle
+            document.getElementById('view-bar').onclick = () => switchView('bar');
+            document.getElementById('view-clock').onclick = () => switchView('clock');
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.toggle-option').forEach(opt => opt.classList.remove('active'));
+            document.getElementById('view-' + view).classList.add('active');
+            renderChart(cachedChartData);
+        }
+
+        async function loadData() {
+            currentAlarms = await fetchCSV('data/alarms.csv');
+            initOrigins();
+            updateDisplay();
+        }
+
+        function initOrigins() {
+            const origins = new Set();
+            currentAlarms.forEach(a => {
+                const o = (a.origin && String(a.origin).trim()) || '';
+                origins.add(o);
+            });
+
+            const group = document.getElementById('origin-group');
+            const translations = {
+                'FA': 'אזעקת שווא', 'Iraq': 'עיראק', 'Yemen': 'תימן',
+                'Lebanon': 'לבנון', 'Gaza': 'עזה', 'Iran': 'איראן', 'Syria': 'סוריה'
+            };
+
+            [...origins].sort().forEach(o => {
+                const label = document.createElement('label');
+                label.className = 'radio-item';
+                const displayName = translations[o] || o || 'בבירור';
+                const isDefault = o === 'Iran' || o === 'איראן';
+                if (isDefault) label.classList.add('active');
+
+                label.innerHTML = `<input type="radio" name="origin" value="${o}" ${isDefault ? 'checked' : ''}> ${displayName}`;
+                label.querySelector('input').onchange = (e) => {
+                    document.querySelectorAll('#origin-group .radio-item').forEach(l => l.classList.remove('active'));
+                    e.target.parentElement.classList.add('active');
+                    updateDisplay();
+                };
+                group.appendChild(label);
+            });
+        }
+
+        function updateDisplay() {
+            const selectedThreatElem = document.querySelector('input[name="threat"]:checked');
+            const selectedOriginElem = document.querySelector('input[name="origin"]:checked');
+
+            const selectedThreat = selectedThreatElem ? selectedThreatElem.value : '0';
+            const selectedOrigin = selectedOriginElem ? selectedOriginElem.value : 'Iran';
+
+            const now = new Date();
+            let effectiveTo = DATE_TO || now.toISOString().slice(0, 10);
+            let effectiveFrom = DATE_FROM;
+
+            const filtered = currentAlarms.filter(a => {
+                const d = parseDate(a.time);
+                if (!d || isNaN(d)) return false;
+
+                // Time Filter
+                if (DATE_FROM === 'last24h') {
+                    if ((now - d) > 24 * 60 * 60 * 1000) return false;
+                } else {
+                    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    if (ds < DATE_FROM || ds > (DATE_TO || '9999-12-31')) return false;
+                }
+
+                // Threat Filter
+                if (a.threat != selectedThreat) return false;
+
+                // Origin Filter
+                const origin = (a.origin && String(a.origin).trim()) || '';
+                if (origin !== selectedOrigin) return false;
+
+                return true;
+            });
+
+            // Aggregate by Hour
+            const hourCounts = Array(24).fill(0);
+            filtered.forEach(a => {
+                const d = parseDate(a.time);
+                const hour = parseInt(new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', hour12: false }).format(d));
+                hourCounts[hour]++;
+            });
+            cachedChartData = hourCounts;
+
+            // Update Stats
+            const total = filtered.length;
+            document.getElementById('stat-total').textContent = total.toLocaleString();
+
+            const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+            document.getElementById('stat-peak').textContent = total > 0 ? `${peakHour}:00` : '-';
+
+            // N-Day Normalization
+            let nDays = 1;
+            if (DATE_FROM === 'last24h') {
+                nDays = 1;
+            } else {
+                const d1 = new Date(effectiveFrom);
+                const d2 = new Date(effectiveTo);
+                nDays = Math.max(1, Math.ceil((d2 - d1) / (24 * 60 * 60 * 1000)) + 1);
+            }
+            document.getElementById('stat-avg').textContent = (total / (nDays * 24)).toFixed(1);
+
+            renderChart(hourCounts);
+        }
+
+        function renderChart(data) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+
+            if (mainChart) mainChart.destroy();
+
+            const chartConfig = {
+                type: currentView === 'bar' ? 'bar' : 'polarArea',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'מספר אזעקות',
+                        data: data || Array(24).fill(0),
+                        backgroundColor: 'rgba(56, 189, 248, 0.6)',
+                        borderColor: '#38bdf8',
+                        borderWidth: 2,
+                        borderRadius: currentView === 'bar' ? 6 : 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `אזעקות: ${context.raw}`
+                            }
+                        }
+                    },
+                    scales: currentView === 'bar' ? {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    } : {
+                        r: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            angleLines: { color: 'rgba(255,255,255,0.1)' },
+                            pointLabels: { display: true, color: '#94a3b8' },
+                            ticks: { display: false }
+                        }
+                    }
+                }
+            };
+
+            mainChart = new Chart(ctx, chartConfig);
+        }
+
+        initUI();
+        loadData();
+    </script>
+</body>
+
+</html>
