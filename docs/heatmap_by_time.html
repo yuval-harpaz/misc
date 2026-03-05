@@ -40,7 +40,6 @@
             white-space: nowrap;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            user-select: none;
         }
 
         #floating-title .title-top {
@@ -305,12 +304,62 @@
         .alarm-popup {
             direction: inherit;
             text-align: inherit;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .alarm-popup::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .alarm-popup::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .alarm-popup::-webkit-scrollbar-thumb {
+            background: rgba(126, 184, 255, 0.4);
+            border-radius: 3px;
         }
 
         .alarm-popup h4 {
             margin: 0 0 8px 0;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding-bottom: 5px;
+            font-size: 1.1em;
+            position: sticky;
+            top: 0;
+            background: inherit;
+            z-index: 1;
+        }
+
+        .alarm-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9em;
+        }
+
+        .alarm-item:last-child {
+            border-bottom: none;
+        }
+
+        .alarm-icon {
+            font-size: 1.1em;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .alarm-time-text {
+            color: #ccc;
+            white-space: nowrap;
+        }
+
+        .alarm-origin-text {
+            color: #88aaff;
+            font-size: 0.85em;
         }
 
         @media (max-width: 600px) {
@@ -392,6 +441,7 @@
 
         // Campaigns Definition
         const campaigns = [
+            { name: '24 שעות אחרונות', name_en: 'Last 24 hours', start: 'last24h', end: null },
             { name: 'שאגת הארי', name_en: 'Epic Fury', start: '2026-02-28', end: null },
             { name: 'עם כלביא', name_en: 'Twelve-Day War', start: '2025-06-13', end: '2025-06-24' },
             { name: 'חיצי הצפון', name_en: 'Northern Arrows', start: '2024-09-19', end: '2024-11-27' },
@@ -407,26 +457,70 @@
 
 
 
-        let DATE_FROM = campaigns[0].start;
+        let DATE_FROM = campaigns[1].start;
         let DATE_TO = new Date().toISOString().slice(0, 10);
 
         function parseDate(str) {
             if (!str) return null;
-            return new Date(str.replace(' ', 'T'));
+            const iso = str.replace(' ', 'T');
+            // Force Israel Winter Time (+02:00) if no timezone specified
+            if (iso.includes('+') || iso.includes('Z')) return new Date(iso);
+            return new Date(iso + "+02:00");
         }
         function formatTime(d) {
-            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            const opts = {
+                timeZone: 'Asia/Jerusalem',
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+                hour12: false
+            };
+            const formatter = new Intl.DateTimeFormat('he-IL', opts);
+            const parts = formatter.formatToParts(d);
+            const get = type => parts.find(p => p.type === type).value;
+            return `${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')}`;
         }
         async function fetchCSV(f) {
             const r = await fetch(GITHUB_RAW + f);
             const text = await r.text();
             return new Promise(res => Papa.parse(text, { header: true, dynamicTyping: true, complete: d => res(d.data) }));
         }
-        function buildPopupContent(loc, ts, isEn) {
-            const titleText = isEn ? `${loc} — ${ts.length} Alarms` : `${loc} — ${ts.length} אזעקות`;
-            return `<div class="alarm-popup" style="direction:${isEn ? 'ltr' : 'rtl'}; text-align:${isEn ? 'left' : 'right'};">
-                <h4>${titleText}</h4>
-            </div>`;
+        function buildPopupContent(loc, alarms, isEn) {
+            const titleText = isEn ? `${loc} — ${alarms.length} Alarms` : `${loc} — ${alarms.length} אזעקות`;
+            // Sort alarms from last (top) to first (bottom)
+            const sortedAlarms = [...alarms].sort((a, b) => parseDate(b.time) - parseDate(a.time));
+
+            let html = `<div class="alarm-popup" style="direction:${isEn ? 'ltr' : 'rtl'}; text-align:${isEn ? 'left' : 'right'};">
+                <h4>${titleText}</h4>`;
+
+            const flagMap = {
+                'Iran': '🇮🇷', 'איראן': '🇮🇷',
+                'Iraq': '🇮🇶', 'עיראק': '🇮🇶',
+                'Yemen': '🇾🇪', 'תימן': '🇾🇪',
+                'Lebanon': '🇱🇧', 'לבנון': '🇱🇧',
+                'Gaza': '🇵🇸', 'עזה': '🇵🇸',
+                'Syria': '🇸🇾', 'סוריה': '🇸🇾'
+            };
+
+            sortedAlarms.forEach(a => {
+                const dateObj = parseDate(a.time);
+                const timeStr = formatTime(dateObj);
+                const threatIcon = a.threat === 5
+                    ? '<span class="alarm-icon" style="color:orange;">🛩️</span>'
+                    : '<span class="alarm-icon" style="color:red;">🚀</span>';
+
+                const origin = (a.origin && String(a.origin).trim()) || '';
+                const flagEmoji = flagMap[origin] || (origin ? '🚩' : '');
+                const originLabel = flagEmoji ? ` <span class="alarm-icon">${flagEmoji}</span>${flagMap[origin] ? '' : `<span class="alarm-origin-text">${origin}</span>`}` : '';
+
+                html += `<div class="alarm-item">
+                    ${threatIcon}
+                    <span class="alarm-time-text">${timeStr}</span>
+                    ${originLabel}
+                </div>`;
+            });
+
+            html += `</div>`;
+            return html;
         }
         function haversine(lat1, lng1, lat2, lng2) {
             const R = 6371000;
@@ -529,14 +623,19 @@
             function rebuildOriginCheckboxes() {
                 // Compute origins present in the current time window (regardless of threat filter)
                 const originsInWindow = new Set();
+                const now = new Date();
                 alarms.forEach(a => {
                     const d = parseDate(a.time);
                     if (!d || isNaN(d)) return;
-                    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    if (ds >= DATE_FROM && ds <= (DATE_TO || '9999-12-31')) {
-                        const origin = (a.origin && String(a.origin).trim()) || '';
-                        originsInWindow.add(origin);
+
+                    if (DATE_FROM === 'last24h') {
+                        if ((now - d) > 24 * 60 * 60 * 1000) return;
+                    } else {
+                        const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        if (ds < DATE_FROM || ds > (DATE_TO || '9999-12-31')) return;
                     }
+                    const origin = (a.origin && String(a.origin).trim()) || '';
+                    originsInWindow.add(origin);
                 });
                 const originGroup = document.getElementById('origin-group');
                 // Remember currently checked origins
@@ -557,7 +656,7 @@
                     cb.checked = isFirstBuild ? true : prevChecked.has(origin);
                     cb.onchange = updateDisplay;
 
-                    let displayName = origin || (isEn ? 'unlabeled' : 'ללא תווית');
+                    let displayName = origin || (isEn ? 'unlabeled' : 'בבירור');
                     if (!isEn) {
                         const translations = {
                             'FA': 'אזעקת שווא',
@@ -589,46 +688,52 @@
 
                 const selectedOrigins = new Set(getSelectedOrigins());
 
+                const now = new Date();
                 const filteredAlarms = alarms.filter(a => {
                     const d = parseDate(a.time);
                     if (!d || isNaN(d)) return false;
-                    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    if (ds < DATE_FROM || ds > (DATE_TO || '9999-12-31')) return false;
+
+                    if (DATE_FROM === 'last24h') {
+                        if ((now - d) > 24 * 60 * 60 * 1000) return false;
+                    } else {
+                        const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        if (ds < DATE_FROM || ds > (DATE_TO || '9999-12-31')) return false;
+                    }
+
                     if (!selectedThreats.includes(a.threat)) return false;
                     const origin = (a.origin && String(a.origin).trim()) || '';
                     if (!selectedOrigins.has(origin)) return false;
                     return true;
                 });
 
-                const locTimes = {};
+                const locAlarms = {};
                 filteredAlarms.forEach(a => {
                     const city = a.cities;
                     if (city) {
-                        if (!locTimes[city]) locTimes[city] = [];
-                        const d = parseDate(a.time);
-                        if (d) locTimes[city].push(d);
+                        if (!locAlarms[city]) locAlarms[city] = [];
+                        locAlarms[city].push(a);
                     }
                 });
 
                 currentLocDataArr = [];
-                Object.entries(locTimes).forEach(([loc, times]) => {
+                Object.entries(locAlarms).forEach(([loc, ts]) => {
                     const coords = coordMap[loc];
-                    if (coords) currentLocDataArr.push({ loc, lat: coords[0], lng: coords[1], count: times.length });
+                    if (coords) currentLocDataArr.push({ loc, lat: coords[0], lng: coords[1], count: ts.length });
                 });
 
                 const maxCount = Math.max(...currentLocDataArr.map(d => d.count), 1);
                 southernmost = currentLocDataArr.length ? currentLocDataArr.reduce((s, p) => p.lat < s.lat ? p : s, currentLocDataArr[0]) : null;
 
-                const sortedEntries = Object.entries(locTimes).sort((a, b) => a[1].length - b[1].length);
-                sortedEntries.forEach(([loc, times]) => {
+                const sortedEntries = Object.entries(locAlarms).sort((a, b) => a[1].length - b[1].length);
+                sortedEntries.forEach(([loc, ts]) => {
                     const coords = coordMap[loc];
                     if (!coords) return;
-                    const count = times.length;
+                    const count = ts.length;
                     const marker = L.circleMarker(coords, {
                         radius: Math.max(Math.sqrt(count) * 2.5, 4),
                         fillColor: countToColor(count, maxCount),
                         color: 'none', fillOpacity: 0.8
-                    }).bindPopup(buildPopupContent(loc, times.sort((a, b) => a - b), isEn), { maxWidth: 280 })
+                    }).bindPopup(buildPopupContent(loc, ts, isEn), { maxWidth: 280 })
                         .addTo(markerLayer);
                     markerMap[loc] = marker;
                 });
@@ -700,7 +805,7 @@
             campaigns.forEach((camp, idx) => {
                 const btn = document.createElement('div');
                 btn.className = 'campaign-btn';
-                if (idx === 0) btn.classList.add('active');
+                if (idx === 1) btn.classList.add('active');
                 btn.textContent = isEn ? camp.name_en : camp.name;
                 btn.onclick = () => {
                     document.querySelectorAll('.campaign-btn').forEach(b => b.classList.remove('active'));
