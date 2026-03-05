@@ -153,6 +153,24 @@
             gap: 8px;
         }
 
+        #apply-date-btn {
+            margin-top: 4px;
+            background: rgba(126, 184, 255, 0.2);
+            border: 1px solid #7eb8ff;
+            color: #fff;
+            padding: 7px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-family: inherit;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+        #apply-date-btn:hover {
+            background: rgba(126, 184, 255, 0.4);
+        }
+
         .date-input-group {
             display: flex;
             align-items: center;
@@ -408,6 +426,7 @@
                     <label>עד:</label>
                     <input type="date" id="date-to">
                 </div>
+                <button id="apply-date-btn">✔ החל</button>
             </div>
         </div>
 
@@ -569,6 +588,7 @@
 
                 document.querySelectorAll('.dropdown-section-title')[0].textContent = 'Campaigns';
                 document.querySelectorAll('.dropdown-section-title')[1].textContent = 'Custom Range';
+                document.getElementById('apply-date-btn').textContent = '✔ Apply';
                 document.querySelectorAll('.filter-section-title')[0].textContent = 'Threat Type';
                 document.getElementById('origin-section-title').textContent = 'Origin';
                 document.querySelectorAll('.date-input-group label')[0].textContent = 'From:';
@@ -894,15 +914,11 @@
                 }
             });
 
-            dateFromInput.onchange = () => {
+            document.getElementById('apply-date-btn').onclick = () => {
                 DATE_FROM = dateFromInput.value;
-                document.querySelectorAll('.campaign-btn').forEach(b => b.classList.remove('active'));
-                rebuildOriginCheckboxes();
-                updateDisplay();
-            };
-            dateToInput.onchange = () => {
                 DATE_TO = dateToInput.value;
                 document.querySelectorAll('.campaign-btn').forEach(b => b.classList.remove('active'));
+                dateDropdown.classList.remove('show');
                 rebuildOriginCheckboxes();
                 updateDisplay();
             };
