@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="icon" href="logo.png">
+    <title>המרווח שבין האזעקות</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;800&family=Outfit:wght@300;400;600;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --accent-color: #10b981;
+            /* Greenish accent for this analysis */
+            --text-color: #f8fafc;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Assistant', 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .page-container {
+            width: 100%;
+            max-width: 1000px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: rgba(15, 23, 42, 0.5);
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            margin: 0 auto;
+        }
+
+        @media (max-width: 900px) {
+            body {
+                overflow-y: auto;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .page-container {
+                height: auto;
+                min-height: 100vh;
+            }
+        }
+
+        /* Header */
+        header {
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 100;
+        }
+
+        .logo-section h1 {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #10b981, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .subtitle a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        /* Layout */
+        main {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        #filter-panel {
+            width: 320px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow: visible;
+            position: relative;
+            z-index: 100;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        #filter-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            color: var(--accent-color);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 2000;
+            cursor: pointer;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .filter-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .filter-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        select {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 12px;
+            border-radius: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+            width: 100%;
+        }
+
+        .search-container {
+            position: relative;
+            width: 100%;
+        }
+
+        #location-search {
+            width: 100%;
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 12px;
+            border-radius: 12px;
+            font-family: inherit;
+            outline: none;
+            cursor: text;
+        }
+
+        #location-dropdown {
+            position: absolute;
+            top: calc(100% + 5px);
+            left: 0;
+            right: 0;
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 5000;
+            display: none;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-color);
+        }
+
+        .dropdown-item.selected {
+            background: rgba(16, 185, 129, 0.2);
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        .apply-button {
+            margin-top: 12px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-family: inherit;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+        }
+
+        .apply-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Main Content */
+        #main-content {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            min-height: 0;
+        }
+
+        #charts-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        .chart-section {
+            flex: 1;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-width: 0;
+            min-height: 400px;
+            max-height: 600px;
+        }
+
+        .chart-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+
+        /* Stats Sidebar */
+        #stats-sidebar {
+            width: 160px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 16px 12px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--accent-color);
+        }
+
+        @media (max-width: 900px) {
+            main {
+                flex-direction: column;
+                overflow-y: visible;
+                padding-bottom: env(safe-area-inset-bottom, 0px);
+                margin-bottom: 120px;
+            }
+
+            #filter-panel {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 320px;
+                height: 100vh;
+                margin: 0;
+                border-radius: 0;
+                transform: translateX(-100%);
+                opacity: 0;
+                pointer-events: none;
+                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+            }
+
+            #filter-panel.open {
+                transform: translateX(0);
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            #filter-toggle {
+                display: flex;
+            }
+
+            #main-content {
+                flex-direction: column;
+                flex-shrink: 0;
+            }
+
+            #stats-sidebar {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .stat-card {
+                flex: 1;
+                min-width: 100px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="page-container">
+        <header>
+            <div class="logo-section">
+                <h1 id="main-title">המרווח שבין האזעקות</h1>
+                <div class="subtitle">
+                    הוכן על ידי <a href="https://oct7database.com" target="_blank">oct7database.com</a> · נתוני פיקוד
+                    העורף דרך <a href="https://www.tzevaadom.co.il/historical" target="_blank">צופר</a>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div id="filter-panel">
+                <div class="filter-section">
+                    <div class="filter-title">📅 טווח זמן</div>
+                    <select id="campaign-select"></select>
+                </div>
+                <div class="filter-section">
+                    <div class="filter-title">🚀 סוג איום</div>
+                    <select id="threat-select">
+                        <option value="0" selected>רקטות\טילים</option>
+                        <option value="5">כלי טיס עויין</option>
+                    </select>
+                </div>
+                <div class="filter-section">
+                    <div class="filter-title">🚩 מקור</div>
+                    <select id="origin-select"></select>
+                </div>
+                <div class="filter-section">
+                    <div class="filter-title">📍 מיקום</div>
+                    <div class="search-container">
+                        <input type="text" id="location-search" placeholder="חפש יישוב..." autocomplete="off">
+                        <div id="location-dropdown"></div>
+                    </div>
+                </div>
+                <button id="btn-apply" class="apply-button">החל סינון</button>
+            </div>
+
+            <div id="main-content">
+                <div id="charts-column">
+                    <div class="chart-section">
+                        <div class="chart-section-header">
+                            <div class="chart-section-title">התפלגות מרווחי זמן (מרווח של 15 דקות)</div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="delayChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="stats-sidebar">
+                    <div class="stat-card">
+                        <div class="stat-label">סה"כ מרווחים</div>
+                        <div class="stat-value" id="stat-count">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">חציון (שעות:דקות)</div>
+                        <div class="stat-value" id="stat-median">-</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <button id="filter-toggle" title="סינון">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+        </svg>
+    </button>
+
+    <script>
+        const GITHUB_RAW = 'https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/';
+        const campaigns = [
+            { name: '24 שעות אחרונות', start: 'last24h', end: null },
+            { name: 'שאגת הארי', start: '2026-02-28', end: null },
+            { name: 'עם כלביא', start: '2025-06-13', end: '2025-06-24' },
+            { name: 'חיצי הצפון', start: '2024-09-19', end: '2024-11-27' },
+            { name: 'מגן ברזל', start: '2024-04-13', end: '2024-04-14' },
+            { name: 'חרבות ברזל 8.10', start: '2023-10-08', end: null },
+            { name: '7 באוקטובר', start: '2023-10-07', end: '2023-10-07' },
+            { name: 'מגן וחץ', start: '2023-05-09', end: '2023-05-13' },
+            { name: 'עלות השחר', start: '2022-08-05', end: '2022-08-08' },
+            { name: 'שומר החומות', start: '2021-05-10', end: '2021-05-21' },
+            { name: 'חגורה שחורה', start: '2019-11-12', end: '2019-11-14' },
+        ];
+
+        let DATE_FROM = campaigns[1].start;
+        let DATE_TO = null;
+        let currentAlarms = [];
+        let delayChart = null;
+        let ALL_LOCATIONS = [];
+        let SELECTED_LOCATION = 'all';
+
+        function parseDate(str) {
+            if (!str) return null;
+            const iso = str.replace(' ', 'T');
+            if (iso.includes('+') || iso.includes('Z')) return new Date(iso);
+            return new Date(iso + "+02:00");
+        }
+
+        function formatDuration(minutes) {
+            if (minutes === null || isNaN(minutes)) return '-';
+            const h = Math.floor(minutes / 60);
+            const m = Math.floor(minutes % 60);
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        }
+
+        async function fetchCSV(f) {
+            const r = await fetch(GITHUB_RAW + f);
+            const text = await r.text();
+            return new Promise(res => Papa.parse(text, { header: true, dynamicTyping: true, complete: d => res(d.data) }));
+        }
+
+        function initUI() {
+            const select = document.getElementById('campaign-select');
+            campaigns.forEach((camp, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = camp.name;
+                if (camp.start === '2026-02-28') opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            select.onchange = () => {
+                const camp = campaigns[select.value];
+                DATE_FROM = camp.start;
+                DATE_TO = camp.end;
+            };
+
+            const searchInput = document.getElementById('location-search');
+            const dropdown = document.getElementById('location-dropdown');
+            searchInput.onfocus = () => { dropdown.style.display = 'block'; filterLocations(searchInput.value); searchInput.select(); };
+            searchInput.oninput = (e) => filterLocations(e.target.value);
+            document.addEventListener('click', (e) => { if (!e.target.closest('.search-container')) dropdown.style.display = 'none'; });
+
+            document.getElementById('btn-apply').onclick = applyFilters;
+
+            const filterToggle = document.getElementById('filter-toggle');
+            const filterPanel = document.getElementById('filter-panel');
+            const filterIcon = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>`;
+            const closeIcon = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+
+            filterToggle.onclick = () => {
+                const isOpen = filterPanel.classList.toggle('open');
+                filterToggle.classList.toggle('active');
+                filterToggle.innerHTML = isOpen ? closeIcon : filterIcon;
+            };
+        }
+
+        function applyFilters() {
+            updateDisplay();
+            if (window.innerWidth <= 900) {
+                document.getElementById('filter-panel').classList.remove('open');
+                document.getElementById('filter-toggle').classList.remove('active');
+                document.getElementById('filter-toggle').innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>`;
+            }
+        }
+
+        async function loadData() {
+            currentAlarms = await fetchCSV('data/alarms.csv');
+            initOrigins();
+            initLocations();
+            updateDisplay();
+        }
+
+        function initOrigins() {
+            const origins = new Set();
+            currentAlarms.forEach(a => {
+                const o = (a.origin && String(a.origin).trim()) || '';
+                if (o && o !== 'Israel' && o !== 'FA') origins.add(o);
+            });
+            const select = document.getElementById('origin-select');
+            const translations = { 'Iraq': 'עיראק', 'Yemen': 'תימן', 'Lebanon': 'לבנון', 'Gaza': 'עזה', 'Iran': 'איראן', 'Syria': 'סוריה', 'בבירור': 'בבירור' };
+            const sorted = [...origins].sort((a, b) => a.localeCompare(b, 'he'));
+            sorted.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o;
+                opt.textContent = translations[o] || o;
+                if (o === 'Iran') opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function initLocations() {
+            const cities = new Set();
+            currentAlarms.forEach(a => { if (a.cities) cities.add(a.cities); });
+            ALL_LOCATIONS = ['הכל', ...[...cities].sort((a, b) => a.localeCompare(b, 'he'))];
+            renderLocationDropdown(ALL_LOCATIONS);
+            document.getElementById('location-search').value = 'הכל';
+        }
+
+        function renderLocationDropdown(list) {
+            const dropdown = document.getElementById('location-dropdown');
+            dropdown.innerHTML = '';
+            list.forEach(loc => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                if (loc === (SELECTED_LOCATION === 'all' ? 'הכל' : SELECTED_LOCATION)) item.classList.add('selected');
+                item.textContent = loc;
+                item.onclick = () => {
+                    SELECTED_LOCATION = loc === 'הכל' ? 'all' : loc;
+                    document.getElementById('location-search').value = loc;
+                    document.getElementById('location-dropdown').style.display = 'none';
+                };
+                dropdown.appendChild(item);
+            });
+        }
+
+        function filterLocations(query) {
+            const filtered = (!query || query === 'הכל') ? ALL_LOCATIONS : ALL_LOCATIONS.filter(loc => loc.includes(query));
+            renderLocationDropdown(filtered);
+        }
+
+        function updateDisplay() {
+            const selectedThreat = document.getElementById('threat-select').value;
+            const selectedOrigin = document.getElementById('origin-select').value;
+            const selectedLocation = SELECTED_LOCATION;
+            const now = new Date();
+
+            const filteredSet = currentAlarms.filter(a => {
+                const d = parseDate(a.time);
+                if (!d || isNaN(d)) return false;
+                if (DATE_FROM === 'last24h') {
+                    if ((now - d) > 24 * 60 * 60 * 1000) return false;
+                } else {
+                    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    if (ds < DATE_FROM || ds > (DATE_TO || '9999-12-31')) return false;
+                }
+                const origin = (a.origin && String(a.origin).trim()) || '';
+                return a.threat == selectedThreat && origin === selectedOrigin && (selectedLocation === 'all' || a.cities === selectedLocation);
+            });
+
+            // Group by city
+            const cityGroups = {};
+            filteredSet.forEach(a => {
+                if (!cityGroups[a.cities]) cityGroups[a.cities] = [];
+                cityGroups[a.cities].push(a);
+            });
+
+            let bins = Array(96).fill(0);
+            let allDelays = [];
+            let processedCities = 0;
+
+            for (const city in cityGroups) {
+                const cityAlarms = cityGroups[city].sort((a, b) => parseDate(a.time) - parseDate(b.time));
+                for (let i = 1; i < cityAlarms.length; i++) {
+                    const diff = (parseDate(cityAlarms[i].time) - parseDate(cityAlarms[i - 1].time)) / 60000;
+                    if (diff < 0) {
+                        alert(`סקת שגיאה: נמצא מרווח זמן שלילי עבור ${city} (${cityAlarms[i - 1].time} -> ${cityAlarms[i].time})`);
+                        console.error(`Negative interval in ${city}: ${diff} min`, cityAlarms[i - 1], cityAlarms[i]);
+                        throw new Error(`Negative interval detected in ${city}`);
+                    }
+                    allDelays.push(diff);
+                }
+            }
+
+            // Normalization: Divide each bin by total count of ALL non-negative intervals
+            if (allDelays.length > 0) {
+                allDelays.forEach(d => {
+                    const binIdx = Math.floor(d / 15);
+                    if (binIdx < 96) bins[binIdx]++;
+                });
+
+                // Use total length (including intervals > 24h) for normalization
+                const totalIntervals = allDelays.length;
+                for (let i = 0; i < 96; i++) {
+                    bins[i] = (bins[i] / totalIntervals) * 100;
+                }
+            }
+
+
+            // Update Stats (Stats are computed from pooled delays for descriptive accuracy)
+            document.getElementById('stat-count').textContent = allDelays.length.toLocaleString();
+            if (allDelays.length > 0) {
+                const sortedDelays = [...allDelays].sort((a, b) => a - b);
+                const median = sortedDelays[Math.floor(sortedDelays.length / 2)];
+                document.getElementById('stat-median').textContent = formatDuration(median);
+            } else {
+                document.getElementById('stat-median').textContent = '-';
+            }
+
+            renderChart(bins);
+        }
+
+        function renderChart(data) {
+            const ctx = document.getElementById('delayChart').getContext('2d');
+            const labels = Array.from({ length: 96 }, (_, i) => {
+                if (i % 4 === 0) {
+                    const h = Math.floor(i / 4);
+                    return `${h}:00`;
+                }
+                return '';
+            });
+
+            if (delayChart) delayChart.destroy();
+
+            delayChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'הסתברות (%)',
+                        data: data,
+                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                        borderColor: '#10b981',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        hoverBackgroundColor: '#10b981',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            padding: 12,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            callbacks: {
+                                title: (items) => {
+                                    const idx = items[0].dataIndex;
+                                    const start = idx * 15;
+                                    const end = (idx + 1) * 15;
+                                    const fmt = (m) => {
+                                        const h = Math.floor(m / 60);
+                                        const rem = m % 60;
+                                        return h > 0 ? `${h}ש ${rem}ד` : `${rem}ד`;
+                                    };
+                                    return `טווח: ${fmt(start)} - ${fmt(end)}`;
+                                },
+                                label: (item) => `סיכוי: ${item.raw.toFixed(2)}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 11 },
+                                callback: (value) => value + '%'
+                            },
+                            title: {
+                                display: true,
+                                text: 'אחוז מהאזעקות',
+                                color: '#94a3b8',
+                                font: { size: 12 }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { size: 10 }, autoSkip: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        initUI();
+        loadData();
+    </script>
+</body>
+
+</html>
