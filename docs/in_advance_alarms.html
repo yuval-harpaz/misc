@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>אזעקות לפי מיקום</title>
+  <title>אזעקות לפי זמן</title>
   <link rel="icon" href="logo.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -137,23 +137,30 @@
       gap: 3px;
       margin-right: auto;
     }
+
     #status-counts {
       font-size: 0.82em;
       color: #c9d1d9;
       line-height: 1.5;
     }
+
     #status-counts span {
       display: inline-block;
       margin-left: 10px;
       white-space: nowrap;
     }
+
     #status-link a {
       font-size: 0.72em;
       color: #7eb8ff;
       text-decoration: none;
       opacity: 0.75;
     }
-    #status-link a:hover { opacity: 1; text-decoration: underline; }
+
+    #status-link a:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
 
     #loading-overlay {
       position: fixed;
@@ -167,20 +174,32 @@
       gap: 18px;
       backdrop-filter: blur(3px);
     }
-    #loading-overlay.hidden { display: none; }
+
+    #loading-overlay.hidden {
+      display: none;
+    }
+
     .spinner {
-      width: 48px; height: 48px;
+      width: 48px;
+      height: 48px;
       border: 4px solid #30363d;
       border-top-color: #7eb8ff;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     #loading-msg {
       color: #c9d1d9;
       font-size: 1.05em;
       font-family: 'Segoe UI', Tahoma, sans-serif;
     }
+
     #loading-sub {
       color: #8b949e;
       font-size: 0.85em;
@@ -192,8 +211,10 @@
 <body>
   <div id="app">
     <div id="header">
-      <img src="logo.png" alt="לוגו" style="height:36px; width:36px; object-fit:contain; border-radius:6px; flex-shrink:0;" onerror="this.style.display='none'">
-      <h1>🚨 אזעקות לפי מיקום</h1>
+      <img src="logo.png" alt="לוגו"
+        style="height:36px; width:36px; object-fit:contain; border-radius:6px; flex-shrink:0;"
+        onerror="this.style.display='none'">
+      <h1>🚨 אזעקות לפי זמן</h1>
       <div id="controls">
         <div id="loc-wrap">
           <label for="loc-input">מיקום: </label>
@@ -209,7 +230,8 @@
         <button class="chart-btn" id="btn-download" onclick="downloadExcel()">⬇️ Excel</button>
         <div id="status-area">
           <div id="status-counts"></div>
-          <div id="status-link"><a href="https://oct7database.com" target="_blank" rel="noopener">oct7database.com</a></div>
+          <div id="status-link"><a href="https://oct7database.com" target="_blank" rel="noopener">oct7database.com</a>
+          </div>
         </div>
       </div>
     </div>
@@ -358,9 +380,9 @@
     function updateLocationStatus(loc) {
       const { alarmEvents, alertEvents } = getDataForLocation(loc);
       const rockets = alarmEvents.filter(e => Number(e.threat) !== 5).length;
-      const uavs    = alarmEvents.filter(e => Number(e.threat) === 5).length;
-      const adv     = alertEvents.length;
-      const total   = rockets + uavs + adv;
+      const uavs = alarmEvents.filter(e => Number(e.threat) === 5).length;
+      const adv = alertEvents.length;
+      const total = rockets + uavs + adv;
       const el = document.getElementById('status-counts');
       if (total === 0) {
         el.innerHTML = `<span>אין נתונים עבור מיקום זה</span>`;
@@ -368,8 +390,8 @@
         el.innerHTML =
           `<span>סה"כ: <b>${total}</b></span>` +
           (rockets ? `<span>🚀 רקטות: <b>${rockets}</b></span>` : '') +
-          (uavs    ? `<span>✈️ כלי טיס: <b>${uavs}</b></span>` : '') +
-          (adv     ? `<span>⚠️ אזהרה מוקדמת: <b>${adv}</b></span>` : '');
+          (uavs ? `<span>✈️ כלי טיס: <b>${uavs}</b></span>` : '') +
+          (adv ? `<span>⚠️ אזהרה מוקדמת: <b>${adv}</b></span>` : '');
       }
     }
 
@@ -544,13 +566,13 @@
         };
       }
 
-      const rockets  = alarmEvents.filter(e => Number(e.threat) !== 5);
-      const uavs     = alarmEvents.filter(e => Number(e.threat) === 5);
+      const rockets = alarmEvents.filter(e => Number(e.threat) !== 5);
+      const uavs = alarmEvents.filter(e => Number(e.threat) === 5);
 
       const traces = [
         makeScatterTrace(alertEvents, 'אזהרה מוקדמת', '#f0c040'),
-        makeScatterTrace(rockets,     'ירי רקטות וטילים', '#e05555'),
-        makeScatterTrace(uavs,        'כלי טיס עויין', '#cc44cc'),
+        makeScatterTrace(rockets, 'ירי רקטות וטילים', '#e05555'),
+        makeScatterTrace(uavs, 'כלי טיס עויין', '#cc44cc'),
       ].filter(Boolean);
 
       // Y axis ticks
@@ -559,11 +581,11 @@
 
       // Night/day background bands spanning full chart width (xref:'paper')
       const nightColor = 'rgba(10,20,70,0.50)';
-      const dayColor   = 'rgba(255,200,80,0.06)';
+      const dayColor = 'rgba(255,200,80,0.06)';
 
       const shapes = [
-        { y0: 0,  y1: 6,  color: nightColor },
-        { y0: 6,  y1: 18, color: dayColor   },
+        { y0: 0, y1: 6, color: nightColor },
+        { y0: 6, y1: 18, color: dayColor },
         { y0: 18, y1: 24, color: nightColor },
       ].map(b => ({
         type: 'rect', xref: 'paper', yref: 'y',
@@ -603,7 +625,7 @@
       }
 
       function fmtDate(ds) {
-        return ds.slice(8,10) + '/' + ds.slice(5,7);
+        return ds.slice(8, 10) + '/' + ds.slice(5, 7);
       }
 
       // Filter: only events from windowStart onwards
@@ -651,23 +673,23 @@
       }
 
       const rockets = filteredAlarms.filter(e => Number(e.threat) !== 5);
-      const uavs    = filteredAlarms.filter(e => Number(e.threat) === 5);
+      const uavs = filteredAlarms.filter(e => Number(e.threat) === 5);
 
       const traces = [
-        makeTrace(filteredAlerts, 'אזהרה מוקדמת',     '#f0c040'),
-        makeTrace(rockets,        'ירי רקטות וטילים', '#e05555'),
-        makeTrace(uavs,           'כלי טיס עויין',    '#cc44cc'),
+        makeTrace(filteredAlerts, 'אזהרה מוקדמת', '#f0c040'),
+        makeTrace(rockets, 'ירי רקטות וטילים', '#e05555'),
+        makeTrace(uavs, 'כלי טיס עויין', '#cc44cc'),
       ].filter(Boolean);
 
       // Y axis: 6 to 30 (06:00 to 06:00 next day)
       // 6=06:00, 12=12:00, 18=18:00, 24=midnight(00:00), 30=06:00 next
       const yTickvals = [6, 9, 12, 15, 18, 21, 24, 27, 30];
-      const yTicktext = ['06:00','09:00','12:00','15:00','18:00','21:00','00:00','03:00','06:00'];
+      const yTicktext = ['06:00', '09:00', '12:00', '15:00', '18:00', '21:00', '00:00', '03:00', '06:00'];
 
       // Night/day bands: day=6-18, night=18-30
       const shapes = [
-        { y0: 6,  y1: 18, color: 'rgba(255,200,80,0.06)'  }, // day
-        { y0: 18, y1: 30, color: 'rgba(10,20,70,0.50)'    }, // night
+        { y0: 6, y1: 18, color: 'rgba(255,200,80,0.06)' }, // day
+        { y0: 18, y1: 30, color: 'rgba(10,20,70,0.50)' }, // night
       ].map(b => ({
         type: 'rect', xref: 'paper', yref: 'y',
         x0: 0, x1: 1, y0: b.y0, y1: b.y1,
