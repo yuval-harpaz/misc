@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>אזעקות לפי מיקום</title>
+  <link rel="icon" href="logo.png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+    }
+
+    #app {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    #header {
+      padding: 16px 20px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-size: 1.3em;
+      color: #a8d4ff;
+      white-space: nowrap;
+    }
+
+    #controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    label {
+      font-size: 0.95em;
+      color: #c9d1d9;
+    }
+
+    #loc-input {
+      background: #21262d;
+      border: 1px solid #484f58;
+      color: #e6edf3;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 1em;
+      width: 220px;
+      direction: rtl;
+    }
+
+    #loc-input:focus {
+      outline: none;
+      border-color: #7eb8ff;
+    }
+
+    #suggestions {
+      position: absolute;
+      background: #21262d;
+      border: 1px solid #484f58;
+      border-radius: 0 0 6px 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      width: 220px;
+    }
+
+    .sug-item {
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 0.95em;
+      color: #e6edf3;
+    }
+
+    .sug-item:hover {
+      background: #2d333b;
+    }
+
+    #loc-wrap {
+      position: relative;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .chart-btn {
+      background: #21262d;
+      border: 1px solid #484f58;
+      color: #c9d1d9;
+      padding: 6px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95em;
+      transition: all 0.2s;
+    }
+
+    .chart-btn.active {
+      background: #1f4080;
+      border-color: #7eb8ff;
+      color: #a8d4ff;
+      font-weight: 600;
+    }
+
+    .chart-btn:hover {
+      border-color: #7eb8ff;
+    }
+
+    #chart {
+      width: 100%;
+      height: calc(100vh - 80px);
+    }
+
+    #status-area {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-right: auto;
+    }
+    #status-counts {
+      font-size: 0.82em;
+      color: #c9d1d9;
+      line-height: 1.5;
+    }
+    #status-counts span {
+      display: inline-block;
+      margin-left: 10px;
+      white-space: nowrap;
+    }
+    #status-link a {
+      font-size: 0.72em;
+      color: #7eb8ff;
+      text-decoration: none;
+      opacity: 0.75;
+    }
+    #status-link a:hover { opacity: 1; text-decoration: underline; }
+
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(13, 17, 23, 0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      gap: 18px;
+      backdrop-filter: blur(3px);
+    }
+    #loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid #30363d;
+      border-top-color: #7eb8ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-msg {
+      color: #c9d1d9;
+      font-size: 1.05em;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+    }
+    #loading-sub {
+      color: #8b949e;
+      font-size: 0.85em;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="header">
+      <img src="logo.png" alt="לוגו" style="height:36px; width:36px; object-fit:contain; border-radius:6px; flex-shrink:0;" onerror="this.style.display='none'">
+      <h1>🚨 אזעקות לפי מיקום</h1>
+      <div id="controls">
+        <div id="loc-wrap">
+          <label for="loc-input">מיקום: </label>
+          <input id="loc-input" type="text" value="תל אביב - מרכז העיר" autocomplete="off"
+            placeholder="הקלד מיקום..." />
+          <div id="suggestions"></div>
+        </div>
+        <div class="btn-group">
+          <button class="chart-btn active" id="btn-bar" onclick="switchChart('bar')">📊 עמודות</button>
+          <button class="chart-btn" id="btn-scatter" onclick="switchChart('scatter')">🔵 פיזור</button>
+          <button class="chart-btn" id="btn-day" onclick="switchChart('day')">☀️🌙 יום-לילה</button>
+        </div>
+        <button class="chart-btn" id="btn-download" onclick="downloadExcel()">⬇️ Excel</button>
+        <div id="status-area">
+          <div id="status-counts"></div>
+          <div id="status-link"><a href="https://oct7database.com" target="_blank" rel="noopener">oct7database.com</a></div>
+        </div>
+      </div>
+    </div>
+    <div id="chart"></div>
+  </div>
+
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-msg">טוען נתונים...</div>
+    <div id="loading-sub"></div>
+  </div>
+
+  <script>
+    const ALARMS_CSV = 'https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/alarms.csv';
+    const ALERTS_CSV = 'https://raw.githubusercontent.com/dleshem/israel-alerts-data/refs/heads/main/israel-alerts.csv';
+    const DATE_FROM = new Date('2026-02-28T00:00:00+02:00');
+
+    let allAlarms = []; // from alarms.csv, filtered to >= Feb 28
+    let allAlerts = []; // from israel-alerts.csv, category 14, filtered to >= Feb 28
+    let allLocations = new Set();
+    let currentChart = 'bar';
+    let currentLocation = 'תל אביב - מרכז העיר';
+
+    // --- Utilities ---
+    function parseAlarmDate(str) {
+      if (!str) return null;
+      const iso = str.replace(' ', 'T');
+      if (iso.includes('+') || iso.includes('Z')) return new Date(iso);
+      return new Date(iso + '+02:00');
+    }
+
+    function parseAlertDate(dateStr, timeStr) {
+      // dateStr: "01.03.2026", timeStr: "13:28:17"
+      if (!dateStr || !timeStr) return null;
+      const parts = dateStr.split('.');
+      if (parts.length !== 3) return null;
+      const [d, m, y] = parts;
+      return new Date(`${y}-${m}-${d}T${timeStr}+02:00`);
+    }
+
+    function toDateStr(d) {
+      const opts = { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' };
+      const parts = new Intl.DateTimeFormat('en-CA', opts).formatToParts(d);
+      const get = t => parts.find(p => p.type === t).value;
+      return `${get('year')}-${get('month')}-${get('day')}`;
+    }
+
+    function timeToFraction(d) {
+      const opts = { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      const parts = new Intl.DateTimeFormat('en-GB', opts).formatToParts(d);
+      const get = t => Number(parts.find(p => p.type === t).value);
+      return get('hour') + get('minute') / 60 + get('second') / 3600;
+    }
+
+    // Location matching: alarms.csv has grouped locations like "תל אביב - מרכז העיר, יפו"
+    // We match if the search location appears as a component in the comma-split list
+    function locationMatches(locField, search) {
+      if (!locField) return false;
+      const parts = locField.split(',').map(s => s.trim());
+      return parts.some(p => p === search);
+    }
+
+    // Build a flat list of all individual location names from alarms.csv
+    function extractLocations(alarms) {
+      const locs = new Set();
+      alarms.forEach(a => {
+        if (a.cities) {
+          a.cities.split(',').forEach(p => locs.add(p.trim()));
+        }
+      });
+      return locs;
+    }
+
+    // Category description map
+    const catDesc = {
+      14: 'אזהרה מוקדמת',
+      1: 'ירי רקטות וטילים',
+      0: 'רקטות',
+      5: 'כלי טיס עויין',
+    };
+
+    function getCategoryLabel(cat, desc) {
+      if (desc) return desc;
+      return catDesc[cat] || `קטגוריה ${cat}`;
+    }
+
+    // --- Data Loading ---
+    async function loadData() {
+      setLoading('מוריד נתוני אזעקות...', 'alarms.csv');
+
+      const [alarmsText, alertsText] = await Promise.all([
+        fetch(ALARMS_CSV).then(r => r.text()),
+        fetch(ALERTS_CSV).then(r => r.text()).catch(() => null)
+      ]);
+
+      setLoading('מעבד נתונים...', 'מנתח רשומות');
+
+      // Parse alarms.csv
+      const alarmsResult = Papa.parse(alarmsText, { header: true, skipEmptyLines: true });
+      allAlarms = alarmsResult.data
+        .map(row => {
+          const d = parseAlarmDate(row.time);
+          return { ...row, _date: d };
+        })
+        .filter(row => row._date && row._date >= DATE_FROM);
+
+      allLocations = extractLocations(allAlarms);
+
+      // Parse israel-alerts.csv (category 14 only)
+      if (alertsText) {
+        setLoading('מעבד אזהרות מוקדמות...', 'israel-alerts.csv');
+        const alertsResult = Papa.parse(alertsText, { header: true, skipEmptyLines: true });
+        allAlerts = alertsResult.data
+          .map(row => {
+            const d = parseAlertDate(row.date, row.time);
+            return { ...row, _date: d, _cat: Number(row.category) };
+          })
+          .filter(row => row._date && row._date >= DATE_FROM && row._cat === 14);
+
+        allAlerts.forEach(a => {
+          if (a.data) allLocations.add(a.data.trim());
+        });
+      }
+
+      const summary = ``;
+      setStatus(summary);
+      hideLoading();
+      renderChart();
+    }
+
+    function setLoading(msg, sub) {
+      document.getElementById('loading-msg').textContent = msg;
+      document.getElementById('loading-sub').textContent = sub || '';
+      document.getElementById('loading-overlay').classList.remove('hidden');
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-overlay').classList.add('hidden');
+    }
+
+    function setStatus(msg) {
+      // Used during loading only
+      document.getElementById('status-counts').textContent = msg;
+    }
+
+    function updateLocationStatus(loc) {
+      const { alarmEvents, alertEvents } = getDataForLocation(loc);
+      const rockets = alarmEvents.filter(e => Number(e.threat) !== 5).length;
+      const uavs    = alarmEvents.filter(e => Number(e.threat) === 5).length;
+      const adv     = alertEvents.length;
+      const total   = rockets + uavs + adv;
+      const el = document.getElementById('status-counts');
+      if (total === 0) {
+        el.innerHTML = `<span>אין נתונים עבור מיקום זה</span>`;
+      } else {
+        el.innerHTML =
+          `<span>סה"כ: <b>${total}</b></span>` +
+          (rockets ? `<span>🚀 רקטות: <b>${rockets}</b></span>` : '') +
+          (uavs    ? `<span>✈️ כלי טיס: <b>${uavs}</b></span>` : '') +
+          (adv     ? `<span>⚠️ אזהרה מוקדמת: <b>${adv}</b></span>` : '');
+      }
+    }
+
+    // --- Chart Rendering ---
+    function getDataForLocation(loc) {
+      // Alarms (source 1)
+      const alarmEvents = allAlarms.filter(a => locationMatches(a.cities, loc));
+
+      // Alerts category 14 (source 2)
+      const alertEvents = allAlerts.filter(a => a.data && a.data.trim() === loc);
+
+      return { alarmEvents, alertEvents };
+    }
+
+    function switchChart(type) {
+      currentChart = type;
+      document.getElementById('btn-bar').classList.toggle('active', type === 'bar');
+      document.getElementById('btn-scatter').classList.toggle('active', type === 'scatter');
+      document.getElementById('btn-day').classList.toggle('active', type === 'day');
+      renderChart();
+    }
+
+    function renderChart() {
+      currentLocation = document.getElementById('loc-input').value.trim();
+      const { alarmEvents, alertEvents } = getDataForLocation(currentLocation);
+      updateLocationStatus(currentLocation);
+
+      if (currentChart === 'bar') renderBar(alarmEvents, alertEvents);
+      else if (currentChart === 'scatter') renderScatter(alarmEvents, alertEvents);
+      else renderDayScatter(alarmEvents, alertEvents);
+    }
+
+    // Generate every date string between first and last date
+    function allDatesInRange(sortedDates) {
+      if (!sortedDates || sortedDates.length === 0) return [];
+      const start = new Date(sortedDates[0] + 'T12:00:00+02:00');
+      const end = new Date(sortedDates[sortedDates.length - 1] + 'T12:00:00+02:00');
+      const result = [];
+      const cur = new Date(start);
+      while (cur <= end) {
+        result.push(toDateStr(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+      return result;
+    }
+
+    function xAxisEveryDay(sortedDates) {
+      const all = allDatesInRange(sortedDates);
+      return {
+        tickvals: all,
+        ticktext: all,
+        tickangle: -90,
+        color: '#c9d1d9',
+        gridcolor: '#21262d',
+        tickfont: { size: 15, color: '#c9d1d9' },
+        type: 'category',
+      };
+    }
+
+    // --- Bar Chart ---
+    function renderBar(alarmEvents, alertEvents) {
+      // Group by date. Each alarm = one segment in a stacked bar.
+      // Stacking order: category 14 (advance warning) at bottom, then others above.
+
+      // Combine and label
+      const all = [
+        ...alertEvents.map(a => ({
+          date: toDateStr(a._date),
+          time: a.time || '',
+          desc: getCategoryLabel(14, a.category_desc),
+          source: 'advance',
+          cat: 14,
+          dateObj: a._date
+        })),
+        ...alarmEvents.map(a => ({
+          date: toDateStr(a._date),
+          time: a._date ? a._date.toTimeString().slice(0, 8) : '',
+          desc: Number(a.threat) === 5 ? 'כלי טיס עויין' : 'ירי רקטות וטילים',
+          source: 'alarm',
+          cat: Number(a.threat),
+          dateObj: a._date
+        }))
+      ];
+
+      if (all.length === 0) {
+        Plotly.react('chart', [], { ...darkLayout(), title: { text: `אין נתונים עבור: ${currentLocation}`, font: { color: '#e6edf3' } } });
+        return;
+      }
+
+      // Get sorted unique dates
+      const dates = [...new Set(all.map(e => e.date))].sort();
+
+      // Define series types (in stacking order: cat14 first, then others)
+      const seriesTypes = [
+        { key: 'advance', label: 'אזהרה מוקדמת', color: '#f0c040', filter: e => e.source === 'advance' },
+        { key: 'rocket', label: 'ירי רקטות וטילים', color: '#e05555', filter: e => e.source === 'alarm' && e.cat !== 5 },
+        { key: 'uav', label: 'כלי טיס עויין', color: '#cc44cc', filter: e => e.source === 'alarm' && e.cat === 5 },
+      ];
+
+      const traces = seriesTypes.map(s => {
+        const x = [];
+        const y = [];
+        const texts = [];
+        const customs = [];
+
+        dates.forEach(date => {
+          const dayEvents = all.filter(e => e.date === date && s.filter(e));
+          x.push(date);
+          y.push(dayEvents.length);
+          // hover: list of times
+          const timeList = dayEvents
+            .slice().sort((a, b) => a.dateObj - b.dateObj)
+            .map(e => e.time.slice(0, 5) + ' ' + e.desc)
+            .join('<br>');
+          texts.push(timeList || '');
+          customs.push(dayEvents.length);
+        });
+
+        return {
+          type: 'bar',
+          name: s.label,
+          x,
+          y,
+          marker: { color: s.color },
+          hovertemplate: '<b>%{x}</b><br>' + s.label + ': %{y}<br>%{text}<extra></extra>',
+          text: texts,
+          textposition: 'none',
+        };
+      });
+
+      const layout = {
+        ...darkLayout(),
+        barmode: 'stack',
+        title: { text: `אזעקות ואזהרות: ${currentLocation}`, font: { color: '#7eb8ff', size: 15 } },
+        xaxis: { ...xAxisEveryDay(dates) },
+        yaxis: { title: { text: 'מספר אירועים', font: { size: 16, color: '#c9d1d9' } }, color: '#c9d1d9', gridcolor: '#21262d', tickfont: { size: 15, color: '#c9d1d9' } },
+        legend: { orientation: 'h', y: -0.35, font: { color: '#c9d1d9', size: 15 } },
+      };
+
+      Plotly.react('chart', traces, layout, { responsive: true, displaylogo: false });
+    }
+
+    // --- Scatter Chart ---
+    function renderScatter(alarmEvents, alertEvents) {
+      // Build sorted unique dates for x axis
+      const allEventDates = [...new Set([
+        ...alertEvents.map(e => toDateStr(e._date)),
+        ...alarmEvents.map(e => toDateStr(e._date))
+      ])].sort();
+
+      if (allEventDates.length === 0) {
+        Plotly.react('chart', [], { ...darkLayout(), title: { text: `אין נתונים עבור: ${currentLocation}`, font: { color: '#e6edf3' } } });
+        return;
+      }
+
+      const allDates = allDatesInRange(allEventDates);
+
+      function makeScatterTrace(events, name, color) {
+        if (events.length === 0) return null;
+        return {
+          type: 'scatter',
+          mode: 'markers',
+          name,
+          x: events.map(e => toDateStr(e._date)),
+          y: events.map(e => timeToFraction(e._date)),
+          text: events.map(e => {
+            const t = e._date ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(e._date) : '';
+            return `${t}<br>${name}`;
+          }),
+          hovertemplate: '<b>%{x}</b><br>%{text}<extra></extra>',
+          marker: { color, size: 9, opacity: 0.85, line: { width: 0.5, color: '#0d1117' } }
+        };
+      }
+
+      const rockets  = alarmEvents.filter(e => Number(e.threat) !== 5);
+      const uavs     = alarmEvents.filter(e => Number(e.threat) === 5);
+
+      const traces = [
+        makeScatterTrace(alertEvents, 'אזהרה מוקדמת', '#f0c040'),
+        makeScatterTrace(rockets,     'ירי רקטות וטילים', '#e05555'),
+        makeScatterTrace(uavs,        'כלי טיס עויין', '#cc44cc'),
+      ].filter(Boolean);
+
+      // Y axis ticks
+      const tickvals = [0, 3, 6, 9, 12, 15, 18, 21, 24];
+      const ticktext = tickvals.map(h => `${String(h % 24).padStart(2, '0')}:00`);
+
+      // Night/day background bands spanning full chart width (xref:'paper')
+      const nightColor = 'rgba(10,20,70,0.50)';
+      const dayColor   = 'rgba(255,200,80,0.06)';
+
+      const shapes = [
+        { y0: 0,  y1: 6,  color: nightColor },
+        { y0: 6,  y1: 18, color: dayColor   },
+        { y0: 18, y1: 24, color: nightColor },
+      ].map(b => ({
+        type: 'rect', xref: 'paper', yref: 'y',
+        x0: 0, x1: 1, y0: b.y0, y1: b.y1,
+        fillcolor: b.color, line: { width: 0 }, layer: 'below',
+      }));
+
+      const layout = {
+        ...darkLayout(),
+        title: { text: `אזעקות ואזהרות: ${currentLocation}`, font: { color: '#7eb8ff', size: 15 } },
+        xaxis: { ...xAxisEveryDay(allEventDates) },
+        yaxis: { title: { text: 'שעה', font: { size: 16, color: '#c9d1d9' } }, range: [0, 24], tickvals, ticktext, color: '#c9d1d9', gridcolor: 'rgba(255,255,255,0.08)', tickfont: { size: 15, color: '#c9d1d9' } },
+        legend: { orientation: 'h', y: -0.35, font: { color: '#c9d1d9', size: 15 } },
+        shapes,
+      };
+
+      Plotly.react('chart', traces, layout, { responsive: true, displaylogo: false });
+    }
+
+    // --- Day Scatter (6–18 only, x = date pairs like "28/02-01/03") ---
+    function renderDayScatter(alarmEvents, alertEvents) {
+      const windowStart = new Date('2026-02-28T06:00:00+02:00');
+
+      // Assign each event to its 06:00-to-06:00 "day slot"
+      // Events 00:00-05:59 belong to the previous calendar day's slot (plotted as h+24)
+      function getSlot(d) {
+        const h = timeToFraction(d);
+        // If before 06:00, slot date = previous calendar day
+        const slotDate = new Date(d);
+        if (h < 6) slotDate.setDate(slotDate.getDate() - 1);
+        return toDateStr(slotDate);
+      }
+
+      function slotY(d) {
+        const h = timeToFraction(d);
+        return h < 6 ? h + 24 : h; // 00:00-05:59 → 24-30 (night tail above midnight line)
+      }
+
+      function fmtDate(ds) {
+        return ds.slice(8,10) + '/' + ds.slice(5,7);
+      }
+
+      // Filter: only events from windowStart onwards
+      const filteredAlerts = alertEvents.filter(e => e._date >= windowStart);
+      const filteredAlarms = alarmEvents.filter(e => e._date >= windowStart);
+
+      if (filteredAlerts.length === 0 && filteredAlarms.length === 0) {
+        Plotly.react('chart', [], { ...darkLayout(), title: { text: `אין נתונים עבור: ${currentLocation}`, font: { color: '#e6edf3' } } });
+        return;
+      }
+
+      // Collect all slot dates and build full consecutive range
+      const allSlotDates = new Set([
+        ...filteredAlerts.map(e => getSlot(e._date)),
+        ...filteredAlarms.map(e => getSlot(e._date)),
+      ]);
+      const sortedSlots = [...allSlotDates].sort();
+      const fullSlots = allDatesInRange(sortedSlots); // fills gaps
+
+      // Slot label: "DD/MM-DD/MM" (start date of slot → next day)
+      function slotLabel(ds) {
+        const d = new Date(ds + 'T12:00:00+02:00');
+        const next = new Date(d); next.setDate(next.getDate() + 1);
+        return fmtDate(ds) + '-' + fmtDate(toDateStr(next));
+      }
+
+      const tickvals = fullSlots;
+      const ticktext = fullSlots.map(slotLabel);
+
+      function makeTrace(events, name, color) {
+        if (events.length === 0) return null;
+        return {
+          type: 'scatter',
+          mode: 'markers',
+          name,
+          x: events.map(e => getSlot(e._date)),
+          y: events.map(e => slotY(e._date)),
+          text: events.map(e => {
+            const t = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(e._date);
+            return `${t}<br>${name}`;
+          }),
+          hovertemplate: '<b>%{x}</b><br>%{text}<extra></extra>',
+          marker: { color, size: 10, opacity: 0.88, line: { width: 0.5, color: '#0d1117' } }
+        };
+      }
+
+      const rockets = filteredAlarms.filter(e => Number(e.threat) !== 5);
+      const uavs    = filteredAlarms.filter(e => Number(e.threat) === 5);
+
+      const traces = [
+        makeTrace(filteredAlerts, 'אזהרה מוקדמת',     '#f0c040'),
+        makeTrace(rockets,        'ירי רקטות וטילים', '#e05555'),
+        makeTrace(uavs,           'כלי טיס עויין',    '#cc44cc'),
+      ].filter(Boolean);
+
+      // Y axis: 6 to 30 (06:00 to 06:00 next day)
+      // 6=06:00, 12=12:00, 18=18:00, 24=midnight(00:00), 30=06:00 next
+      const yTickvals = [6, 9, 12, 15, 18, 21, 24, 27, 30];
+      const yTicktext = ['06:00','09:00','12:00','15:00','18:00','21:00','00:00','03:00','06:00'];
+
+      // Night/day bands: day=6-18, night=18-30
+      const shapes = [
+        { y0: 6,  y1: 18, color: 'rgba(255,200,80,0.06)'  }, // day
+        { y0: 18, y1: 30, color: 'rgba(10,20,70,0.50)'    }, // night
+      ].map(b => ({
+        type: 'rect', xref: 'paper', yref: 'y',
+        x0: 0, x1: 1, y0: b.y0, y1: b.y1,
+        fillcolor: b.color, line: { width: 0 }, layer: 'below',
+      }));
+
+      const layout = {
+        ...darkLayout(),
+        title: { text: `יום-לילה: ${currentLocation}`, font: { color: '#7eb8ff', size: 15 } },
+        xaxis: {
+          type: 'category',
+          tickvals,
+          ticktext,
+          tickangle: -90,
+          color: '#c9d1d9',
+          gridcolor: '#21262d',
+          tickfont: { size: 15, color: '#c9d1d9' },
+        },
+        yaxis: {
+          title: { text: 'שעה', font: { size: 16, color: '#c9d1d9' } },
+          range: [6, 30],
+          tickvals: yTickvals,
+          ticktext: yTicktext,
+          color: '#c9d1d9',
+          gridcolor: 'rgba(255,255,255,0.08)',
+          tickfont: { size: 15, color: '#c9d1d9' },
+        },
+        legend: { orientation: 'h', y: -0.35, font: { color: '#c9d1d9', size: 15 } },
+        shapes,
+      };
+
+      Plotly.react('chart', traces, layout, { responsive: true, displaylogo: false });
+    }
+
+    function darkLayout() {
+      return {
+        paper_bgcolor: '#0d1117',
+        plot_bgcolor: '#161b22',
+        font: { color: '#c9d1d9', family: 'Segoe UI, Tahoma, sans-serif', size: 16 },
+        margin: { t: 70, r: 30, b: 160, l: 90 },
+        hoverlabel: { bgcolor: '#21262d', bordercolor: '#484f58', font: { color: '#e6edf3', size: 14 } },
+      };
+    }
+
+    // --- Autocomplete ---
+    const locInput = document.getElementById('loc-input');
+    const sugDiv = document.getElementById('suggestions');
+
+    locInput.addEventListener('input', () => {
+      const val = locInput.value.trim();
+      sugDiv.innerHTML = '';
+      if (!val || val.length < 2) { sugDiv.style.display = 'none'; return; }
+      const matches = [...allLocations]
+        .filter(l => l.includes(val))
+        .sort()
+        .slice(0, 15);
+      if (matches.length === 0) { sugDiv.style.display = 'none'; return; }
+      sugDiv.style.display = 'block';
+      matches.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'sug-item';
+        div.textContent = m;
+        div.onclick = () => {
+          locInput.value = m;
+          sugDiv.style.display = 'none';
+          renderChart();
+        };
+        sugDiv.appendChild(div);
+      });
+    });
+
+    locInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { sugDiv.style.display = 'none'; renderChart(); }
+    });
+
+    document.addEventListener('click', e => {
+      if (!document.getElementById('loc-wrap').contains(e.target)) sugDiv.style.display = 'none';
+    });
+
+    // --- Excel Download ---
+    function downloadExcel() {
+      const loc = document.getElementById('loc-input').value.trim();
+      const { alarmEvents, alertEvents } = getDataForLocation(loc);
+
+      const fmt = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Jerusalem',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+      });
+
+      function fmtDT(d) {
+        const p = fmt.formatToParts(d);
+        const g = t => p.find(x => x.type === t).value;
+        return `${g('year')}-${g('month')}-${g('day')} ${g('hour')}:${g('minute')}:${g('second')}`;
+      }
+
+      const rows = [
+        ...alertEvents.map(e => ({
+          datetime: fmtDT(e._date),
+          type: 'אזהרה מוקדמת',
+        })),
+        ...alarmEvents.map(e => ({
+          datetime: fmtDT(e._date),
+          type: Number(e.threat) === 5 ? 'כלי טיס עויין' : 'ירי רקטות וטילים',
+        })),
+      ].sort((a, b) => a.datetime.localeCompare(b.datetime));
+
+      if (rows.length === 0) {
+        alert('אין נתונים למיקום זה');
+        return;
+      }
+
+      const ws = XLSX.utils.json_to_sheet(rows, { header: ['datetime', 'type'] });
+      ws['!cols'] = [{ wch: 22 }, { wch: 24 }];
+      // Hebrew column headers
+      ws['A1'].v = 'תאריך ושעה';
+      ws['B1'].v = 'סוג אזעקה';
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'אזעקות');
+
+      const safeLoc = loc.replace(/[\\/:*?"<>|]/g, '_');
+      XLSX.writeFile(wb, `אזעקות_${safeLoc}.xlsx`);
+    }
+
+    // --- Init ---
+    loadData();
+  </script>
+</body>
+
+</html>
