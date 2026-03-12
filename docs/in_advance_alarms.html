@@ -137,23 +137,30 @@
       gap: 3px;
       margin-right: auto;
     }
+
     #status-counts {
       font-size: 0.82em;
       color: #c9d1d9;
       line-height: 1.5;
     }
+
     #status-counts span {
       display: inline-block;
       margin-left: 10px;
       white-space: nowrap;
     }
+
     #status-link a {
       font-size: 0.72em;
       color: #7eb8ff;
       text-decoration: none;
       opacity: 0.75;
     }
-    #status-link a:hover { opacity: 1; text-decoration: underline; }
+
+    #status-link a:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
 
     #loading-overlay {
       position: fixed;
@@ -167,20 +174,32 @@
       gap: 18px;
       backdrop-filter: blur(3px);
     }
-    #loading-overlay.hidden { display: none; }
+
+    #loading-overlay.hidden {
+      display: none;
+    }
+
     .spinner {
-      width: 48px; height: 48px;
+      width: 48px;
+      height: 48px;
       border: 4px solid #30363d;
       border-top-color: #7eb8ff;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     #loading-msg {
       color: #c9d1d9;
       font-size: 1.05em;
       font-family: 'Segoe UI', Tahoma, sans-serif;
     }
+
     #loading-sub {
       color: #8b949e;
       font-size: 0.85em;
@@ -192,7 +211,9 @@
 <body>
   <div id="app">
     <div id="header">
-      <img src="logo.png" alt="לוגו" style="height:36px; width:36px; object-fit:contain; border-radius:6px; flex-shrink:0;" onerror="this.style.display='none'">
+      <img src="logo.png" alt="לוגו"
+        style="height:36px; width:36px; object-fit:contain; border-radius:6px; flex-shrink:0;"
+        onerror="this.style.display='none'">
       <h1>🚨 אזעקות לפי מיקום</h1>
       <div id="controls">
         <div id="loc-wrap">
@@ -205,11 +226,13 @@
           <button class="chart-btn active" id="btn-bar" onclick="switchChart('bar')">📊 עמודות</button>
           <button class="chart-btn" id="btn-scatter" onclick="switchChart('scatter')">🔵 פיזור</button>
           <button class="chart-btn" id="btn-day" onclick="switchChart('day')">☀️🌙 יום-לילה</button>
+          <button class="chart-btn" id="btn-delay" onclick="switchChart('delay')">📉 זמני תגובה</button>
         </div>
         <button class="chart-btn" id="btn-download" onclick="downloadExcel()">⬇️ Excel</button>
         <div id="status-area">
           <div id="status-counts"></div>
-          <div id="status-link"><a href="https://oct7database.com" target="_blank" rel="noopener">oct7database.com</a></div>
+          <div id="status-link"><a href="https://oct7database.com" target="_blank" rel="noopener">oct7database.com</a>
+          </div>
         </div>
       </div>
     </div>
@@ -286,6 +309,7 @@
     // Category description map
     const catDesc = {
       14: 'אזהרה מוקדמת',
+      13: 'סיום אירוע',
       1: 'ירי רקטות וטילים',
       0: 'רקטות',
       5: 'כלי טיס עויין',
@@ -327,11 +351,12 @@
             const d = parseAlertDate(row.date, row.time);
             return { ...row, _date: d, _cat: Number(row.category) };
           })
-          .filter(row => row._date && row._date >= DATE_FROM && row._cat === 14);
+          .filter(row => row._date && row._date >= DATE_FROM && (row._cat === 14 || row._cat === 13));
 
         allAlerts.forEach(a => {
           if (a.data) allLocations.add(a.data.trim());
         });
+        allLocations.add('הכל');
       }
 
       const summary = ``;
@@ -358,27 +383,32 @@
     function updateLocationStatus(loc) {
       const { alarmEvents, alertEvents } = getDataForLocation(loc);
       const rockets = alarmEvents.filter(e => Number(e.threat) !== 5).length;
-      const uavs    = alarmEvents.filter(e => Number(e.threat) === 5).length;
-      const adv     = alertEvents.length;
-      const total   = rockets + uavs + adv;
+      const uavs = alarmEvents.filter(e => Number(e.threat) === 5).length;
+      const adv = alertEvents.filter(e => e._cat === 14).length;
+      const ended = alertEvents.filter(e => e._cat === 13).length;
+      const total = rockets + uavs + adv;
       const el = document.getElementById('status-counts');
-      if (total === 0) {
+      if (total === 0 && ended === 0) {
         el.innerHTML = `<span>אין נתונים עבור מיקום זה</span>`;
       } else {
         el.innerHTML =
           `<span>סה"כ: <b>${total}</b></span>` +
           (rockets ? `<span>🚀 רקטות: <b>${rockets}</b></span>` : '') +
-          (uavs    ? `<span>✈️ כלי טיס: <b>${uavs}</b></span>` : '') +
-          (adv     ? `<span>⚠️ אזהרה מוקדמת: <b>${adv}</b></span>` : '');
+          (uavs ? `<span>✈️ כלי טיס: <b>${uavs}</b></span>` : '') +
+          (adv ? `<span>⚠️ אזהרה מוקדמת: <b>${adv}</b></span>` : '') +
+          (ended ? `<span>✅ סיום אירוע: <b>${ended}</b></span>` : '');
       }
     }
 
     // --- Chart Rendering ---
     function getDataForLocation(loc) {
+      if (loc === 'הכל') {
+        return { alarmEvents: allAlarms, alertEvents: allAlerts };
+      }
       // Alarms (source 1)
       const alarmEvents = allAlarms.filter(a => locationMatches(a.cities, loc));
 
-      // Alerts category 14 (source 2)
+      // Alerts category 13, 14 (source 2)
       const alertEvents = allAlerts.filter(a => a.data && a.data.trim() === loc);
 
       return { alarmEvents, alertEvents };
@@ -386,10 +416,171 @@
 
     function switchChart(type) {
       currentChart = type;
-      document.getElementById('btn-bar').classList.toggle('active', type === 'bar');
-      document.getElementById('btn-scatter').classList.toggle('active', type === 'scatter');
-      document.getElementById('btn-day').classList.toggle('active', type === 'day');
+      ['bar', 'scatter', 'day', 'delay'].forEach(t => {
+        const btn = document.getElementById(`btn-${t}`);
+        if (btn) btn.classList.toggle('active', type === t);
+      });
       renderChart();
+    }
+
+    function getMatchedDelays() {
+      const inMatches = [];
+      const outMatches = [];
+      const locsToProcess = currentLocation === 'הכל' ? [...allLocations].filter(l => l !== 'הכל') : [currentLocation];
+
+      locsToProcess.forEach(loc => {
+        const locAlarms = allAlarms.filter(a => locationMatches(a.cities, loc) && Number(a.threat) !== 5);
+        const locWarnings = allAlerts.filter(a => a.data && a.data.trim() === loc && a._cat === 14);
+        const locEndings = allAlerts.filter(a => a.data && a.data.trim() === loc && a._cat === 13);
+
+        const alarmData = new Map();
+
+        // 1. Warnings -> First missile alarm within 20min
+        locWarnings.forEach(w => {
+          const wTime = w._date.getTime();
+          const firstA = locAlarms
+            .filter(a => a._date.getTime() > wTime && (a._date.getTime() - wTime) <= 20 * 60000)
+            .sort((a, b) => a._date - b._date)[0];
+          if (firstA) {
+            const lag = (firstA._date.getTime() - wTime) / 60000;
+            inMatches.push({ date: toDateStr(w._date), lag });
+            if (!alarmData.has(firstA)) alarmData.set(firstA, { loc });
+            alarmData.get(firstA).in = lag;
+          }
+        });
+
+        // 2. Ends -> Last missile alarm within 30min
+        locEndings.forEach(e => {
+          const eTime = e._date.getTime();
+          const lastA = locAlarms
+            .filter(a => a._date.getTime() < eTime && (eTime - a._date.getTime()) <= 30 * 60000)
+            .sort((a, b) => b._date - a._date)[0];
+          if (lastA) {
+            const lag = (eTime - lastA._date.getTime()) / 60000;
+            outMatches.push({ date: toDateStr(e._date), lag });
+            if (!alarmData.has(lastA)) alarmData.set(lastA, { loc });
+            alarmData.get(lastA).out = lag;
+          }
+        });
+
+        // 3. Logging for March 1st sorted by alarm time
+        const fmtDur = (m) => {
+          const mm = Math.floor(m);
+          const ss = Math.round((m - mm) * 60);
+          return `${mm}:${ss.toString().padStart(2, '0')}`;
+        };
+
+        const sortedAlarms = [...alarmData.keys()].sort((a, b) => a._date - b._date);
+        sortedAlarms.forEach(a => {
+          const d = alarmData.get(a);
+          if (toDateStr(a._date) === '2026-03-01' && d.loc === 'תל אביב - מרכז העיר') {
+            const wPart = d.in !== undefined ? `warning at -${fmtDur(d.in)}min` : 'no warning';
+            const ePart = d.out !== undefined ? `end at +${fmtDur(d.out)}min` : 'no end';
+            console.log(`${d.loc} - alarm time ${a._date.toTimeString().slice(0, 5)}, ${wPart}, ${ePart}`);
+          }
+        });
+      });
+
+      return { inMatches, outMatches };
+    }
+
+    function renderDelay(alarmEvents, alertEvents) {
+      const { inMatches, outMatches } = getMatchedDelays();
+
+      if (inMatches.length === 0 && outMatches.length === 0) {
+        Plotly.react('chart', [], { ...darkLayout(), title: { text: `אין נתונים עם אזהרה מוקדמת או סיום אירוע עבור: ${currentLocation}`, font: { color: '#e6edf3' } } });
+        return;
+      }
+
+      const days = {};
+      inMatches.forEach(m => {
+        if (!days[m.date]) days[m.date] = { in: [], out: [] };
+        days[m.date].in.push(m.lag);
+      });
+      outMatches.forEach(m => {
+        if (!days[m.date]) days[m.date] = { in: [], out: [] };
+        days[m.date].out.push(m.lag);
+      });
+
+      const sortedDays = Object.keys(days).sort();
+      const avgIn = sortedDays.map(d => {
+        const v = days[d].in;
+        return v.length ? (v.reduce((a, b) => a + b, 0) / v.length) : null;
+      });
+      const avgOut = sortedDays.map(d => {
+        const v = days[d].out;
+        return v.length ? (v.reduce((a, b) => a + b, 0) / v.length) : null;
+      });
+
+      const fmtMMSS = (m) => {
+        if (m === null) return '';
+        const mm = Math.floor(m);
+        const ss = Math.round((m - mm) * 60);
+        return `${mm}:${ss.toString().padStart(2, '0')}`;
+      };
+
+      const traces = [
+        {
+          x: sortedDays,
+          y: avgIn.map(v => v === null ? null : -v),
+          type: 'bar',
+          name: 'זמן מאזהרה לאזעקה (דקות)',
+          marker: { color: '#f0c040' },
+          hovertemplate: 'יום: %{x}<br>זמן מאזהרה: %{y:.1f} דקות<extra></extra>'
+        },
+        {
+          x: sortedDays,
+          y: avgOut,
+          type: 'bar',
+          name: 'זמן מאזעקה לסיום (דקות)',
+          marker: { color: '#40c040' },
+          hovertemplate: 'יום: %{x}<br>זמן לסיום: %{y:.1f} דקות<extra></extra>'
+        },
+        // Label traces at specific heights
+        {
+          x: sortedDays,
+          y: sortedDays.map(() => -1),
+          mode: 'text',
+          text: avgIn.map(fmtMMSS),
+          textfont: { color: 'white', size: 16 },
+          showlegend: false,
+          hoverinfo: 'none'
+        },
+        {
+          x: sortedDays,
+          y: sortedDays.map(() => 1),
+          mode: 'text',
+          text: avgOut.map(fmtMMSS),
+          textfont: { color: 'white', size: 16 },
+          showlegend: false,
+          hoverinfo: 'none'
+        }
+      ];
+
+      const layout = {
+        ...darkLayout(),
+        barmode: 'relative',
+        title: { text: `זמן תגובה ממוצע (דקות): ${currentLocation === 'הכל' ? 'כל המיקומים' : currentLocation}`, font: { color: '#7eb8ff', size: 15 } },
+        xaxis: { ...xAxisEveryDay(sortedDays) },
+        yaxis: {
+          title: { text: 'דקות', font: { size: 16, color: '#c9d1d9' } },
+          color: '#c9d1d9',
+          gridcolor: 'rgba(255,255,255,0.15)', // Slightly brighter for the major lines
+          showgrid: true,
+          gridwidth: 2, // Thicker major grid lines
+          dtick: 1,     // Labels and major grid every 1 minute
+          minor: {
+            dtick: 1 / 12, // 5 second intervals (1/12 of a minute)
+            showgrid: true,
+            gridcolor: 'rgba(255,255,255,0.05)', // Subtle color for minor lines
+            gridwidth: 1 // Thinner minor grid lines
+          },
+          tickfont: { size: 15, color: '#c9d1d9' }
+        },
+        legend: { orientation: 'h', y: -0.15, font: { color: '#c9d1d9', size: 15 } },
+      };
+
+      Plotly.react('chart', traces, layout, { responsive: true, displaylogo: false });
     }
 
     function renderChart() {
@@ -399,7 +590,8 @@
 
       if (currentChart === 'bar') renderBar(alarmEvents, alertEvents);
       else if (currentChart === 'scatter') renderScatter(alarmEvents, alertEvents);
-      else renderDayScatter(alarmEvents, alertEvents);
+      else if (currentChart === 'day') renderDayScatter(alarmEvents, alertEvents);
+      else renderDelay(alarmEvents, alertEvents);
     }
 
     // Generate every date string between first and last date
@@ -436,7 +628,7 @@
 
       // Combine and label
       const all = [
-        ...alertEvents.map(a => ({
+        ...alertEvents.filter(e => e._cat === 14).map(a => ({
           date: toDateStr(a._date),
           time: a.time || '',
           desc: getCategoryLabel(14, a.category_desc),
@@ -544,13 +736,16 @@
         };
       }
 
-      const rockets  = alarmEvents.filter(e => Number(e.threat) !== 5);
-      const uavs     = alarmEvents.filter(e => Number(e.threat) === 5);
+      const rockets = alarmEvents.filter(e => Number(e.threat) !== 5);
+      const uavs = alarmEvents.filter(e => Number(e.threat) === 5);
+      const warnings = alertEvents.filter(e => e._cat === 14);
+      const endings = alertEvents.filter(e => e._cat === 13);
 
       const traces = [
-        makeScatterTrace(alertEvents, 'אזהרה מוקדמת', '#f0c040'),
-        makeScatterTrace(rockets,     'ירי רקטות וטילים', '#e05555'),
-        makeScatterTrace(uavs,        'כלי טיס עויין', '#cc44cc'),
+        makeScatterTrace(warnings, 'אזהרה מוקדמת', '#f0c040'),
+        makeScatterTrace(endings, 'סיום אירוע', '#40c040'),
+        makeScatterTrace(rockets, 'ירי רקטות וטילים', '#e05555'),
+        makeScatterTrace(uavs, 'כלי טיס עויין', '#cc44cc'),
       ].filter(Boolean);
 
       // Y axis ticks
@@ -559,11 +754,11 @@
 
       // Night/day background bands spanning full chart width (xref:'paper')
       const nightColor = 'rgba(10,20,70,0.50)';
-      const dayColor   = 'rgba(255,200,80,0.06)';
+      const dayColor = 'rgba(255,200,80,0.06)';
 
       const shapes = [
-        { y0: 0,  y1: 6,  color: nightColor },
-        { y0: 6,  y1: 18, color: dayColor   },
+        { y0: 0, y1: 6, color: nightColor },
+        { y0: 6, y1: 18, color: dayColor },
         { y0: 18, y1: 24, color: nightColor },
       ].map(b => ({
         type: 'rect', xref: 'paper', yref: 'y',
@@ -603,7 +798,7 @@
       }
 
       function fmtDate(ds) {
-        return ds.slice(8,10) + '/' + ds.slice(5,7);
+        return ds.slice(8, 10) + '/' + ds.slice(5, 7);
       }
 
       // Filter: only events from windowStart onwards
@@ -651,23 +846,26 @@
       }
 
       const rockets = filteredAlarms.filter(e => Number(e.threat) !== 5);
-      const uavs    = filteredAlarms.filter(e => Number(e.threat) === 5);
+      const uavs = filteredAlarms.filter(e => Number(e.threat) === 5);
+      const warnings = filteredAlerts.filter(e => e._cat === 14);
+      const endings = filteredAlerts.filter(e => e._cat === 13);
 
       const traces = [
-        makeTrace(filteredAlerts, 'אזהרה מוקדמת',     '#f0c040'),
-        makeTrace(rockets,        'ירי רקטות וטילים', '#e05555'),
-        makeTrace(uavs,           'כלי טיס עויין',    '#cc44cc'),
+        makeTrace(warnings, 'אזהרה מוקדמת', '#f0c040'),
+        makeTrace(endings, 'סיום אירוע', '#40c040'),
+        makeTrace(rockets, 'ירי רקטות וטילים', '#e05555'),
+        makeTrace(uavs, 'כלי טיס עויין', '#cc44cc'),
       ].filter(Boolean);
 
       // Y axis: 6 to 30 (06:00 to 06:00 next day)
       // 6=06:00, 12=12:00, 18=18:00, 24=midnight(00:00), 30=06:00 next
       const yTickvals = [6, 9, 12, 15, 18, 21, 24, 27, 30];
-      const yTicktext = ['06:00','09:00','12:00','15:00','18:00','21:00','00:00','03:00','06:00'];
+      const yTicktext = ['06:00', '09:00', '12:00', '15:00', '18:00', '21:00', '00:00', '03:00', '06:00'];
 
       // Night/day bands: day=6-18, night=18-30
       const shapes = [
-        { y0: 6,  y1: 18, color: 'rgba(255,200,80,0.06)'  }, // day
-        { y0: 18, y1: 30, color: 'rgba(10,20,70,0.50)'    }, // night
+        { y0: 6, y1: 18, color: 'rgba(255,200,80,0.06)' }, // day
+        { y0: 18, y1: 30, color: 'rgba(10,20,70,0.50)' }, // night
       ].map(b => ({
         type: 'rect', xref: 'paper', yref: 'y',
         x0: 0, x1: 1, y0: b.y0, y1: b.y1,
@@ -768,7 +966,7 @@
       const rows = [
         ...alertEvents.map(e => ({
           datetime: fmtDT(e._date),
-          type: 'אזהרה מוקדמת',
+          type: getCategoryLabel(e._cat),
         })),
         ...alarmEvents.map(e => ({
           datetime: fmtDT(e._date),
