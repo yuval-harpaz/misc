@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>אזעקות לפי מיקום</title>
+  <title>התרעות מקדימות</title>
   <link rel="icon" href="logo.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -205,6 +205,24 @@
       font-size: 0.85em;
       font-family: 'Segoe UI', Tahoma, sans-serif;
     }
+
+    .source-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #8b949e;
+      font-size: 0.82em;
+    }
+
+    .source-links a {
+      display: flex;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .source-links a:hover {
+      opacity: 1;
+    }
   </style>
 </head>
 
@@ -214,7 +232,7 @@
       <img src="logo.png" alt="לוגו"
         style="height:36px; width:36px; object-fit:contain; border-radius:6px; flex-shrink:0;"
         onerror="this.style.display='none'">
-      <h1>🚨 אזעקות לפי מיקום</h1>
+      <h1>🚨 התרעות מקדימות</h1>
       <div id="controls">
         <div id="loc-wrap">
           <label for="loc-input">מיקום: </label>
@@ -226,9 +244,28 @@
           <button class="chart-btn active" id="btn-bar" onclick="switchChart('bar')">📊 עמודות</button>
           <button class="chart-btn" id="btn-scatter" onclick="switchChart('scatter')">🔵 פיזור</button>
           <button class="chart-btn" id="btn-day" onclick="switchChart('day')">☀️🌙 יום-לילה</button>
-          <button class="chart-btn" id="btn-delay" onclick="switchChart('delay')">📉 זמני תגובה</button>
+          <button class="chart-btn" id="btn-delay" onclick="switchChart('delay')">↔️ זמן מראש</button>
         </div>
         <button class="chart-btn" id="btn-download" onclick="downloadExcel()">⬇️ Excel</button>
+        <div class="source-links">
+          <span>מקורות:</span>
+          <a href="https://github.com/yuval-harpaz/alarms/blob/master/data/alarms.csv" target="_blank"
+            title="alarms.csv">
+            <svg height="20" viewBox="0 0 16 16" width="20" fill="#c9d1d9">
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+              </path>
+            </svg>
+          </a>
+          <a href="https://github.com/dleshem/israel-alerts-data/blob/main/israel-alerts.csv" target="_blank"
+            title="israel-alerts.csv">
+            <svg height="20" viewBox="0 0 16 16" width="20" fill="#c9d1d9">
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+              </path>
+            </svg>
+          </a>
+        </div>
         <div id="status-area">
           <div id="status-counts"></div>
           <div id="status-link"><a href="https://oct7database.com" target="_blank" rel="noopener">oct7database.com</a>
@@ -557,6 +594,27 @@
         }
       ];
 
+      const yTickvals = [];
+      const yTicktext = [];
+      for (let m = -10; m <= 30; m += 5) {
+        yTickvals.push(m);
+        const absM = Math.abs(m);
+        const mins = Math.floor(absM);
+        const sign = m < 0 ? '-' : '';
+        yTicktext.push(`${sign}${mins}m`);
+      }
+
+      const shapes = [];
+      for (let m = -10; m <= 30; m++) {
+        shapes.push({
+          type: 'line',
+          xref: 'paper', x0: 0, x1: 1,
+          yref: 'y', y0: m, y1: m,
+          layer: 'below',
+          line: { color: 'rgba(255,255,255,0.15)', width: 1.5 }
+        });
+      }
+
       const layout = {
         ...darkLayout(),
         barmode: 'relative',
@@ -565,19 +623,14 @@
         yaxis: {
           title: { text: 'דקות', font: { size: 16, color: '#c9d1d9' } },
           color: '#c9d1d9',
-          gridcolor: 'rgba(255,255,255,0.15)', // Slightly brighter for the major lines
-          showgrid: true,
-          gridwidth: 2, // Thicker major grid lines
-          dtick: 1,     // Labels and major grid every 1 minute
-          minor: {
-            dtick: 1 / 12, // 5 second intervals (1/12 of a minute)
-            showgrid: true,
-            gridcolor: 'rgba(255,255,255,0.05)', // Subtle color for minor lines
-            gridwidth: 1 // Thinner minor grid lines
-          },
+          showgrid: false,
+          tickmode: 'array',
+          tickvals: yTickvals,
+          ticktext: yTicktext,
           tickfont: { size: 15, color: '#c9d1d9' }
         },
         legend: { orientation: 'h', y: -0.15, font: { color: '#c9d1d9', size: 15 } },
+        shapes
       };
 
       Plotly.react('chart', traces, layout, { responsive: true, displaylogo: false });
