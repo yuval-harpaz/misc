@@ -482,10 +482,56 @@
                 min-width: 100px;
             }
         }
+
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-color);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            transition: opacity 0.5s ease;
+        }
+
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 4px solid rgba(56, 189, 248, 0.15);
+            border-top-color: #38bdf8;
+            border-right-color: #818cf8;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.05em;
+        }
     </style>
 </head>
 
 <body>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">טוען נתונים...</div>
+    </div>
 
     <div class="page-container">
 
@@ -776,21 +822,36 @@
             if (view === 'prob') data = cachedProbData;
 
             renderChart(data);
+
+            // Mirror to minute chart
+            if (view !== currentMinView) {
+                _switchMinViewInternal(view);
+            }
         }
 
         function switchMinView(view) {
+            _switchMinViewInternal(view);
+
+            // Mirror to main chart
+            if (view !== currentView) {
+                currentView = view;
+                document.querySelectorAll('#view-bar, #view-clock, #view-prob').forEach(opt => opt.classList.remove('active'));
+                document.getElementById('view-' + view).classList.add('active');
+                const btn = document.getElementById('autoscale-main');
+                if (view === 'prob') btn.style.display = 'flex';
+                else btn.style.display = 'none';
+                renderChart(view === 'prob' ? cachedProbData : cachedChartData);
+            }
+        }
+
+        function _switchMinViewInternal(view) {
             currentMinView = view;
             document.querySelectorAll('#view-min-bar, #view-min-clock, #view-min-prob').forEach(opt => opt.classList.remove('active'));
             document.getElementById('view-min-' + view).classList.add('active');
-
-            // Autoscale button visibility
             const btn = document.getElementById('autoscale-min');
             if (view === 'prob') btn.style.display = 'flex';
             else btn.style.display = 'none';
-
-            let data = cachedMinuteData;
-            if (view === 'prob') data = cachedMinuteProbData;
-            renderMinuteChart(data);
+            renderMinuteChart(view === 'prob' ? cachedMinuteProbData : cachedMinuteData);
         }
 
         async function loadData() {
@@ -798,6 +859,10 @@
             initOrigins();
             initLocations();
             updateDisplay();
+            // Dismiss loading overlay
+            const overlay = document.getElementById('loading-overlay');
+            overlay.classList.add('hidden');
+            setTimeout(() => overlay.style.display = 'none', 500);
         }
 
         function initOrigins() {
@@ -1083,6 +1148,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: chartType === 'polarArea' ? false : { duration: 300 },
                     layout: {
                         padding: isProb ? 20 : 0
                     },
@@ -1204,6 +1270,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: !isBar ? false : { duration: 300 },
                     layout: {
                         padding: isProb ? 20 : 0
                     },
