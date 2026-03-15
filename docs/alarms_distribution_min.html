@@ -346,6 +346,39 @@
             color: #0f172a;
         }
 
+        .autoscale-btn {
+            margin-top: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #94a3b8;
+            transition: all 0.2s;
+        }
+
+        .autoscale-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-color);
+        }
+
+        .autoscale-btn.active {
+            background: var(--accent-color);
+            color: #0f172a;
+            border-color: var(--accent-color);
+        }
+
+        .chart-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
         .chart-container {
             flex: 1;
             position: relative;
@@ -387,7 +420,7 @@
         .chart-section-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 16px;
         }
 
@@ -395,6 +428,7 @@
             font-size: 14px;
             font-weight: 600;
             color: #94a3b8;
+            margin-top: 10px;
         }
 
         @media (max-width: 900px) {
@@ -512,9 +546,13 @@
                     <div class="chart-section">
                         <div class="chart-section-header">
                             <div class="chart-section-title">התפלגות לפי שעה (24 שעות)</div>
-                            <div class="btn-toggle">
-                                <div class="toggle-option" id="view-bar">גרף עמודות</div>
-                                <div class="toggle-option active" id="view-clock">שעון 24ש</div>
+                            <div class="chart-controls">
+                                <div class="btn-toggle">
+                                    <div class="toggle-option" id="view-bar">גרף עמודות</div>
+                                    <div class="toggle-option active" id="view-prob">הסתברות</div>
+                                    <div class="toggle-option" id="view-clock">שעון 24ש</div>
+                                </div>
+                                <div class="autoscale-btn" id="autoscale-main">קנה מידה אוטומטי</div>
                             </div>
                         </div>
                         <div class="chart-container">
@@ -526,9 +564,13 @@
                     <div class="chart-section">
                         <div class="chart-section-header">
                             <div class="chart-section-title">התפלגות בתוך השעה (דקות)</div>
-                            <div class="btn-toggle">
-                                <div class="toggle-option" id="view-min-bar">גרף עמודות</div>
-                                <div class="toggle-option active" id="view-min-clock">שעון 60 דקות</div>
+                            <div class="chart-controls">
+                                <div class="btn-toggle">
+                                    <div class="toggle-option" id="view-min-bar">גרף עמודות</div>
+                                    <div class="toggle-option" id="view-min-prob">הסתברות</div>
+                                    <div class="toggle-option active" id="view-min-clock">שעון 60 דקות</div>
+                                </div>
+                                <div class="autoscale-btn" id="autoscale-min">קנה מידה אוטומטי</div>
                             </div>
                         </div>
                         <div class="chart-container">
@@ -584,10 +626,15 @@
         let currentAlarms = [];
         let mainChart = null;
         let minuteChart = null;
-        let currentView = 'clock'; // 'bar' or 'clock'
-        let currentMinView = 'clock'; // 'bar' or 'clock'
+        let currentView = 'prob'; // 'bar' or 'clock' or 'prob'
+        let currentMinView = 'clock'; // 'bar' or 'clock' or 'prob'
         let cachedChartData = Array(24).fill(0);
         let cachedMinuteData = Array(60).fill(0);
+        let cachedProbData = Array(24).fill(0);
+        let cachedMinuteProbData = Array(12).fill(0);
+
+        let mainAutoscale = false;
+        let minAutoscale = false;
 
         // Robust Time Parsing
         function parseDate(str) {
@@ -651,10 +698,31 @@
             // View Toggle (24h chart)
             document.getElementById('view-bar').onclick = () => switchView('bar');
             document.getElementById('view-clock').onclick = () => switchView('clock');
+            document.getElementById('view-prob').onclick = () => switchView('prob');
+
+            // Autoscale Main
+            const autoscaleMainBtn = document.getElementById('autoscale-main');
+            autoscaleMainBtn.onclick = () => {
+                mainAutoscale = !mainAutoscale;
+                if (mainAutoscale) autoscaleMainBtn.classList.add('active');
+                else autoscaleMainBtn.classList.remove('active');
+                renderChart(currentView === 'prob' ? cachedProbData : cachedChartData);
+            };
 
             // View Toggle (minute chart)
             document.getElementById('view-min-bar').onclick = () => switchMinView('bar');
             document.getElementById('view-min-clock').onclick = () => switchMinView('clock');
+            document.getElementById('view-min-prob').onclick = () => switchMinView('prob');
+
+             // Autoscale Minute
+            const autoscaleMinBtn = document.getElementById('autoscale-min');
+            autoscaleMinBtn.onclick = () => {
+                minAutoscale = !minAutoscale;
+                if (minAutoscale) autoscaleMinBtn.classList.add('active');
+                else autoscaleMinBtn.classList.remove('active');
+                renderMinuteChart(currentMinView === 'prob' ? cachedMinuteProbData : cachedMinuteData);
+            };
+
 
             // Mobile Filter Toggle
             const filterToggle = document.getElementById('filter-toggle');
@@ -696,16 +764,33 @@
 
         function switchView(view) {
             currentView = view;
-            document.querySelectorAll('#view-bar, #view-clock').forEach(opt => opt.classList.remove('active'));
+            document.querySelectorAll('#view-bar, #view-clock, #view-prob').forEach(opt => opt.classList.remove('active'));
             document.getElementById('view-' + view).classList.add('active');
-            renderChart(cachedChartData);
+
+            // Autoscale button visibility
+            const btn = document.getElementById('autoscale-main');
+            if (view === 'prob') btn.style.display = 'flex';
+            else btn.style.display = 'none';
+
+            let data = cachedChartData;
+            if (view === 'prob') data = cachedProbData;
+
+            renderChart(data);
         }
 
         function switchMinView(view) {
             currentMinView = view;
-            document.querySelectorAll('#view-min-bar, #view-min-clock').forEach(opt => opt.classList.remove('active'));
+            document.querySelectorAll('#view-min-bar, #view-min-clock, #view-min-prob').forEach(opt => opt.classList.remove('active'));
             document.getElementById('view-min-' + view).classList.add('active');
-            renderMinuteChart(cachedMinuteData);
+
+            // Autoscale button visibility
+            const btn = document.getElementById('autoscale-min');
+            if (view === 'prob') btn.style.display = 'flex';
+            else btn.style.display = 'none';
+
+            let data = cachedMinuteData;
+            if (view === 'prob') data = cachedMinuteProbData;
+            renderMinuteChart(data);
         }
 
         async function loadData() {
@@ -790,19 +875,37 @@
 
             const now = new Date();
 
-            // 1. Total Count Filter (Matches Time, Threat, Location - includes ALL origins)
-            const totalMatchingSet = currentAlarms.filter(a => {
+            // Filter for campaign date range to determine valid days and start hour
+            const dateFilteredAlarms = currentAlarms.filter(a => {
                 const d = parseDate(a.time);
                 if (!d || isNaN(d)) return false;
-
-                // Time Filter
                 if (DATE_FROM === 'last24h') {
-                    if ((now - d) > 24 * 60 * 60 * 1000) return false;
+                    return (now - d) <= 24 * 60 * 60 * 1000;
                 } else {
                     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    if (ds < DATE_FROM || ds > (DATE_TO || '9999-12-31')) return false;
+                    return ds >= DATE_FROM && ds <= (DATE_TO || '9999-12-31');
                 }
+            });
 
+            // Find start hour (first alarm in the campaign)
+            let startHour = 0;
+            if (dateFilteredAlarms.length > 0) {
+                let minTime = Infinity;
+                dateFilteredAlarms.forEach(a => {
+                    const t = parseDate(a.time).getTime();
+                    if (t < minTime) minTime = t;
+                });
+                if (minTime !== Infinity) {
+                    const d = new Date(minTime);
+                    const alarmDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+                    if (alarmDateStr === DATE_FROM) {
+                        startHour = parseInt(new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', hour12: false }).format(d));
+                    }
+                }
+            }
+
+            // 1. Total Count Filter (Matches Time, Threat, Location - includes ALL origins)
+            const totalMatchingSet = dateFilteredAlarms.filter(a => {
                 // Threat Filter
                 if (a.threat != selectedThreat) return false;
 
@@ -827,7 +930,89 @@
             });
             cachedChartData = hourCounts;
 
-            // Aggregate by Minute within the hour
+            // Probability Calculation Variables
+            const probData = Array(24).fill(0);
+            const probMinuteData = Array(12).fill(0); // 5-min buckets
+
+            // Numerator: Unique days per hour
+            const uniqueDaysPerHour = Array.from({length: 24}, () => new Set());
+            // Numerator: Unique days per 5-min bucket
+            const uniqueDaysPerBucket = Array.from({length: 12}, () => new Set());
+
+            filteredForChart.forEach(a => {
+                const d = parseDate(a.time);
+                const dayStr = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+                // Hour Probability
+                const hour = parseInt(new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', hour12: false }).format(d));
+                uniqueDaysPerHour[hour].add(dayStr);
+
+                // Minute Probability
+                const minute = parseInt(new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', minute: '2-digit' }).format(d));
+                const bucket = Math.floor(minute / 5);
+                if (bucket >= 0 && bucket < 12) {
+                    uniqueDaysPerBucket[bucket].add(dayStr);
+                }
+            });
+
+            // Denominator
+            if (DATE_FROM === 'last24h') {
+                probData.fill(0);
+                probMinuteData.fill(0);
+            } else {
+                const sDateObj = new Date(DATE_FROM);
+                const isOngoing = !DATE_TO;
+                const eDateObj = isOngoing ? now : new Date(DATE_TO);
+
+                // Calculate total calendar days spanned
+                const sDay = new Date(sDateObj); sDay.setHours(12,0,0,0);
+                const eDay = new Date(eDateObj); eDay.setHours(12,0,0,0);
+
+                let daySpan = Math.round((eDay - sDay) / (1000 * 60 * 60 * 24)) + 1;
+                if (daySpan < 1) daySpan = 1;
+
+                const currentH = parseInt(new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', hour12: false }).format(now));
+
+                for (let h = 0; h < 24; h++) {
+                    let count = daySpan;
+
+                    // Adjust for Start Day (exclude hours before the very first alarm of the campaign)
+                    if (h < startHour) {
+                         count--;
+                    }
+
+                    // Adjust for End Day (Current Day) - exclude current and future hours
+                    if (isOngoing) {
+                         if (h >= currentH) {
+                             count--;
+                         }
+                    }
+
+                    if (count < 1) count = 0;
+
+                    const num = uniqueDaysPerHour[h].size;
+                    probData[h] = count > 0 ? (num / count * 100) : 0;
+                }
+
+                // Calculate Minute Probability (using total days count - approximation,
+                // ignoring the fact that partial hours might affect start/end times precisely,
+                // but daySpan is a good enough denominator for 5-min buckets across many days)
+                // Actually, for minute buckets, we just use the total dayspan,
+                // because we don't usually filter minute-buckets by "start hour of the war".
+                // We'll use daySpan as is.
+
+                for (let b = 0; b < 12; b++) {
+                     let count = daySpan;
+                     // Only adjust for strict future?
+                     // Simple approach: Use total dayspan.
+                     const num = uniqueDaysPerBucket[b].size;
+                     probMinuteData[b] = count > 0 ? (num / count * 100) : 0;
+                }
+            }
+            cachedProbData = probData;
+            cachedMinuteProbData = probMinuteData;
+
+            // Aggregate by Minute within the hour (Standard Count)
             const minuteCounts = Array(60).fill(0);
             filteredForChart.forEach(a => {
                 const d = parseDate(a.time);
@@ -846,8 +1031,8 @@
             const peakMinute = minuteCounts.indexOf(Math.max(...minuteCounts));
             document.getElementById('stat-peak-min').textContent = filteredForChart.length > 0 ? `דקה ${peakMinute}` : '-';
 
-            renderChart(hourCounts);
-            renderMinuteChart(minuteCounts);
+            renderChart(currentView === 'prob' ? cachedProbData : cachedChartData);
+            renderMinuteChart(currentMinView === 'prob' ? cachedMinuteProbData : cachedMinuteData);
         }
 
         function renderChart(data) {
@@ -856,49 +1041,93 @@
 
             if (mainChart) mainChart.destroy();
 
+            const isProb = currentView === 'prob';
+            const chartType = currentView === 'bar' ? 'bar' : 'polarArea';
+
+            const scaleOptions = {};
+            if (chartType === 'polarArea') {
+                scaleOptions.r = {
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    angleLines: { color: 'rgba(255,255,255,0.1)' },
+                    pointLabels: { display: true, color: '#94a3b8' },
+                    ticks: { display: false, backdropColor: 'transparent' }
+                };
+                if (isProb && !mainAutoscale) {
+                    scaleOptions.r.suggestedMax = 100;
+                }
+            } else {
+                 scaleOptions.y = {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#94a3b8' }
+                };
+                scaleOptions.x = {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8' }
+                };
+            }
+
             const chartConfig = {
-                type: currentView === 'bar' ? 'bar' : 'polarArea',
+                type: chartType,
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'מספר אזעקות',
+                        label: isProb ? 'הסתברות (%)' : 'מספר אזעקות',
                         data: data || Array(24).fill(0),
-                        backgroundColor: 'rgba(56, 189, 248, 0.6)',
-                        borderColor: '#38bdf8',
+                        backgroundColor: isProb ? 'rgba(244, 114, 182, 0.6)' : 'rgba(56, 189, 248, 0.6)',
+                        borderColor: isProb ? '#f472b6' : '#38bdf8',
                         borderWidth: 2,
-                        borderRadius: currentView === 'bar' ? 6 : 0,
+                        borderRadius: chartType === 'bar' ? 6 : 0,
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: isProb ? 20 : 0
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: (context) => `אזעקות: ${context.raw}`
+                                label: (context) => isProb ? `הסתברות: ${context.raw.toFixed(1)}%` : `אזעקות: ${context.raw}`
                             }
                         }
                     },
-                    scales: currentView === 'bar' ? {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#94a3b8' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#94a3b8' }
-                        }
-                    } : {
-                        r: {
-                            grid: { color: 'rgba(255,255,255,0.1)' },
-                            angleLines: { color: 'rgba(255,255,255,0.1)' },
-                            pointLabels: { display: true, color: '#94a3b8' },
-                            ticks: { display: false }
+                    scales: scaleOptions
+                },
+                plugins: [
+                    {
+                        id: 'topLabels',
+                        afterDraw: (chart) => {
+                            if (!isProb || chartType === 'bar') return;
+                            const ctx = chart.ctx;
+                            const dataset = chart.data.datasets[0];
+                            const meta = chart.getDatasetMeta(0);
+
+                            // Find top 3 indices
+                            const indexedData = dataset.data.map((v, i) => ({v, i}));
+                            indexedData.sort((a, b) => b.v - a.v);
+                            const top3 = indexedData.slice(0, 3).filter(d => d.v > 0);
+
+                            ctx.save();
+                            ctx.font = 'bold 12px Assistant';
+                            ctx.fillStyle = '#f8fafc';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+
+                            top3.forEach(item => {
+                                const el = meta.data[item.i];
+                                const angle = (el.startAngle + el.endAngle) / 2;
+                                const r = el.outerRadius + 15; // Offset from the bar
+                                const x = el.x + Math.cos(angle) * r;
+                                const y = el.y + Math.sin(angle) * r;
+                                ctx.fillText(item.v.toFixed(1) + '%', x, y);
+                            });
+                            ctx.restore();
                         }
                     }
-                }
+                ]
             };
 
             mainChart = new Chart(ctx, chartConfig);
@@ -906,65 +1135,128 @@
 
         function renderMinuteChart(data) {
             const ctx = document.getElementById('minuteChart').getContext('2d');
-            const labels = Array.from({ length: 60 }, (_, i) => i % 5 === 0 ? `:${String(i).padStart(2, '0')}` : '');
+
+            const isProb = currentMinView === 'prob';
+            const isBar = currentMinView === 'bar';
+
+            let labels;
+            if (isProb) {
+                // 12 sectors
+                labels = Array.from({length: 12}, (_, i) => `:${String(i*5).padStart(2,'0')}`);
+            } else {
+                // 60 sectors
+                labels = Array.from({ length: 60 }, (_, i) => i % 5 === 0 ? `:${String(i).padStart(2, '0')}` : '');
+            }
 
             if (minuteChart) minuteChart.destroy();
 
+            const scaleOptions = {};
+            if (!isBar) {
+                scaleOptions.r = {
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    angleLines: { color: 'rgba(255,255,255,0.1)' },
+                    pointLabels: {
+                        display: true,
+                        color: '#94a3b8',
+                        font: { size: 9 },
+                        callback: (label, idx) => {
+                            if (isProb) return label;
+                            return idx % 5 === 0 ? label : '';
+                        }
+                    },
+                    ticks: { display: false }
+                };
+                if (isProb && !minAutoscale) {
+                    scaleOptions.r.suggestedMax = 100;
+                }
+            } else {
+                 scaleOptions.y = {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#94a3b8' }
+                };
+                scaleOptions.x = {
+                    grid: { display: false },
+                    ticks: {
+                        color: '#94a3b8',
+                        maxRotation: 0,
+                        callback: function (val, idx) {
+                            if (isProb) return labels[idx];
+                            return idx % 5 === 0 ? `:${String(idx).padStart(2, '0')}` : '';
+                        }
+                    }
+                };
+            }
+
             const chartConfig = {
-                type: currentMinView === 'bar' ? 'bar' : 'polarArea',
+                type: isBar ? 'bar' : 'polarArea',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'מספר אזעקות',
-                        data: data || Array(60).fill(0),
-                        backgroundColor: 'rgba(129, 140, 248, 0.6)',
-                        borderColor: '#818cf8',
-                        borderWidth: currentMinView === 'bar' ? 2 : 1,
-                        borderRadius: currentMinView === 'bar' ? 4 : 0,
+                        label: isProb ? 'הסתברות (%)' : 'מספר אזעקות',
+                        data: data,
+                        backgroundColor: isProb ? 'rgba(244, 114, 182, 0.6)' : 'rgba(129, 140, 248, 0.6)',
+                        borderColor: isProb ? '#f472b6' : '#818cf8',
+                        borderWidth: isBar ? 2 : 1,
+                        borderRadius: isBar ? 4 : 0,
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: isProb ? 20 : 0
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                title: (items) => `דקה :${String(items[0].dataIndex).padStart(2, '0')}`,
-                                label: (context) => `אזעקות: ${context.raw}`
+                                title: (items) => {
+                                    if (isProb) {
+                                        const idx = items[0].dataIndex;
+                                        return `דקות ${String(idx*5).padStart(2,'0')}-${String(idx*5+4).padStart(2,'0')}`;
+                                    } else {
+                                        return `דקה :${String(items[0].dataIndex).padStart(2, '0')}`;
+                                    }
+                                },
+                                label: (context) => isProb ? `הסתברות: ${context.raw.toFixed(1)}%` : `אזעקות: ${context.raw}`
                             }
                         }
                     },
-                    scales: currentMinView === 'bar' ? {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#94a3b8' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: {
-                                color: '#94a3b8',
-                                maxRotation: 0,
-                                callback: function (val, idx) {
-                                    return idx % 5 === 0 ? `:${String(idx).padStart(2, '0')}` : '';
-                                }
-                            }
-                        }
-                    } : {
-                        r: {
-                            grid: { color: 'rgba(255,255,255,0.1)' },
-                            angleLines: { color: 'rgba(255,255,255,0.1)' },
-                            pointLabels: {
-                                display: true,
-                                color: '#94a3b8',
-                                font: { size: 9 },
-                                callback: (label, idx) => idx % 5 === 0 ? label : ''
-                            },
-                            ticks: { display: false }
+                    scales: scaleOptions
+                },
+                plugins: [
+                    {
+                        id: 'topLabelsMin',
+                        afterDraw: (chart) => {
+                            if (!isProb || isBar) return;
+                            const ctx = chart.ctx;
+                            const dataset = chart.data.datasets[0];
+                            const meta = chart.getDatasetMeta(0);
+
+                            // Find top 3 indices
+                            const indexedData = dataset.data.map((v, i) => ({v, i}));
+                            indexedData.sort((a, b) => b.v - a.v);
+                            const top3 = indexedData.slice(0, 3).filter(d => d.v > 0);
+
+                            ctx.save();
+                            ctx.font = 'bold 10px Assistant';
+                            ctx.fillStyle = '#f8fafc';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+
+                            top3.forEach(item => {
+                                const el = meta.data[item.i];
+                                const angle = (el.startAngle + el.endAngle) / 2;
+                                const r = el.outerRadius + 15;
+                                const x = el.x + Math.cos(angle) * r;
+                                const y = el.y + Math.sin(angle) * r;
+                                ctx.fillText(item.v.toFixed(1) + '%', x, y);
+                            });
+                            ctx.restore();
                         }
                     }
-                }
+                ]
             };
 
             minuteChart = new Chart(ctx, chartConfig);
