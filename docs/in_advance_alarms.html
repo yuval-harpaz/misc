@@ -539,13 +539,20 @@
         days[m.date].out.push(m.lag);
       });
 
-      const sortedDays = Object.keys(days).sort();
-      const avgIn = sortedDays.map(d => {
-        const v = days[d].in;
+      // Use the full date range from the events (alarms/alerts) so the X-axis is consistent
+      // even if the last few days have no matching delay data.
+      const allEventDates = [...new Set([
+        ...alertEvents.map(e => toDateStr(e._date)),
+        ...alarmEvents.map(e => toDateStr(e._date))
+      ])].sort();
+      const allDays = allDatesInRange(allEventDates);
+
+      const avgIn = allDays.map(d => {
+        const v = days[d] ? days[d].in : [];
         return v.length ? (v.reduce((a, b) => a + b, 0) / v.length) : null;
       });
-      const avgOut = sortedDays.map(d => {
-        const v = days[d].out;
+      const avgOut = allDays.map(d => {
+        const v = days[d] ? days[d].out : [];
         return v.length ? (v.reduce((a, b) => a + b, 0) / v.length) : null;
       });
 
@@ -558,7 +565,7 @@
 
       const traces = [
         {
-          x: sortedDays,
+          x: allDays,
           y: avgIn.map(v => v === null ? null : -v),
           type: 'bar',
           name: 'זמן מאזהרה לאזעקה (דקות)',
@@ -566,7 +573,7 @@
           hovertemplate: 'יום: %{x}<br>זמן מאזהרה: %{y:.1f} דקות<extra></extra>'
         },
         {
-          x: sortedDays,
+          x: allDays,
           y: avgOut,
           type: 'bar',
           name: 'זמן מאזעקה לסיום (דקות)',
@@ -575,8 +582,8 @@
         },
         // Label traces at specific heights
         {
-          x: sortedDays,
-          y: sortedDays.map(() => -1),
+          x: allDays,
+          y: allDays.map(() => -1),
           mode: 'text',
           text: avgIn.map(fmtMMSS),
           textfont: { color: 'white', size: 16 },
@@ -584,8 +591,8 @@
           hoverinfo: 'none'
         },
         {
-          x: sortedDays,
-          y: sortedDays.map(() => 1),
+          x: allDays,
+          y: allDays.map(() => 1),
           mode: 'text',
           text: avgOut.map(fmtMMSS),
           textfont: { color: 'white', size: 16 },
@@ -619,7 +626,7 @@
         ...darkLayout(),
         barmode: 'relative',
         title: { text: `זמן תגובה ממוצע (דקות): ${currentLocation === 'הכל' ? 'כל המיקומים' : currentLocation}`, font: { color: '#7eb8ff', size: 15 } },
-        xaxis: { ...xAxisEveryDay(sortedDays) },
+        xaxis: { ...xAxisEveryDay(allDays), categoryorder: 'array', categoryarray: allDays },
         yaxis: {
           title: { text: 'דקות', font: { size: 16, color: '#c9d1d9' } },
           color: '#c9d1d9',
@@ -822,7 +829,7 @@
       const layout = {
         ...darkLayout(),
         title: { text: `אזעקות ואזהרות: ${currentLocation}`, font: { color: '#7eb8ff', size: 15 } },
-        xaxis: { ...xAxisEveryDay(allEventDates) },
+        xaxis: { ...xAxisEveryDay(allEventDates), categoryorder: 'array', categoryarray: allDates },
         yaxis: { title: { text: 'שעה', font: { size: 16, color: '#c9d1d9' } }, range: [0, 24], tickvals, ticktext, color: '#c9d1d9', gridcolor: 'rgba(255,255,255,0.08)', tickfont: { size: 15, color: '#c9d1d9' } },
         legend: { orientation: 'h', y: -0.12, font: { color: '#c9d1d9', size: 15 } },
         shapes,
@@ -930,6 +937,8 @@
         title: { text: `יום-לילה: ${currentLocation}`, font: { color: '#7eb8ff', size: 15 } },
         xaxis: {
           type: 'category',
+          categoryorder: 'array',
+          categoryarray: fullSlots,
           tickvals,
           ticktext,
           tickangle: -90,
