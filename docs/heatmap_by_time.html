@@ -640,7 +640,7 @@
                 return selected;
             }
 
-            function rebuildOriginCheckboxes() {
+            function rebuildOriginCheckboxes(selectAll = false) {
                 // Compute origins present in the current time window (regardless of threat filter)
                 const originsInWindow = new Set();
                 const now = new Date();
@@ -672,8 +672,8 @@
                     const cb = document.createElement('input');
                     cb.type = 'checkbox';
                     cb.value = origin;
-                    // On first build, check all; otherwise preserve previous state
-                    cb.checked = isFirstBuild ? true : prevChecked.has(origin);
+                    // On first build or time change, check all; otherwise preserve previous state
+                    cb.checked = (isFirstBuild || selectAll) ? true : prevChecked.has(origin);
                     cb.onchange = updateDisplay;
 
                     let displayName = origin || (isEn ? 'unlabeled' : 'בבירור');
@@ -835,7 +835,7 @@
                     dateFromInput.value = DATE_FROM;
                     dateToInput.value = DATE_TO;
                     dateDropdown.classList.remove('show');
-                    rebuildOriginCheckboxes();
+                    rebuildOriginCheckboxes(true);
                     updateDisplay();
                 };
                 campaignList.appendChild(btn);
@@ -919,7 +919,7 @@
                 DATE_TO = dateToInput.value;
                 document.querySelectorAll('.campaign-btn').forEach(b => b.classList.remove('active'));
                 dateDropdown.classList.remove('show');
-                rebuildOriginCheckboxes();
+                rebuildOriginCheckboxes(true);
                 updateDisplay();
             };
 
