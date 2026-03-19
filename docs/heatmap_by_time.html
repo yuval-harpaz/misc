@@ -633,17 +633,26 @@
                 return `rgb(160,20,20)`;
             }
 
-            function getSelectedOrigins() {
-                const checks = document.querySelectorAll('#origin-group input[type="checkbox"]');
-                const selected = [];
-                checks.forEach(cb => { if (cb.checked) selected.push(cb.value); });
-                return selected;
+            // --- Debounce helper ---
+            function debounce(fn, delay) {
+                let timer;
+                return function (...args) {
+                    clearTimeout(timer);
+                    timer = setTimeout(() => fn.apply(this, args), delay);
+                };
             }
 
-            function rebuildOriginCheckboxes(selectAll = false) {
-                // Compute origins present in the current time window (regardless of threat filter)
-                const originsInWindow = new Set();
+            // --- Alarm cache ---
+            // Rebuilt once per time-window change. Keyed by origin, then threat, then city.
+            // Structure: cache[origin][threat][city] = [alarm, ...]
+            let alarmCache = null;   // populated by buildAlarmCache()
+            let cacheOrigins = [];   // sorted list of origins in current window
+
+            function buildAlarmCache() {
                 const now = new Date();
+                const dateEnd = DATE_TO || '9999-12-31';
+                const cache = {};
+
                 alarms.forEach(a => {
                     const d = parseDate(a.time);
                     if (!d || isNaN(d)) return;
@@ -652,29 +661,50 @@
                         if ((now - d) > 24 * 60 * 60 * 1000) return;
                     } else {
                         const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                        if (ds < DATE_FROM || ds > (DATE_TO || '9999-12-31')) return;
+                        if (ds < DATE_FROM || ds > dateEnd) return;
                     }
+
                     const origin = (a.origin && String(a.origin).trim()) || '';
-                    originsInWindow.add(origin);
+                    const threat = a.threat;
+                    const city = a.cities;
+                    if (!city) return;
+
+                    if (!cache[origin]) cache[origin] = {};
+                    if (!cache[origin][threat]) cache[origin][threat] = {};
+                    if (!cache[origin][threat][city]) cache[origin][threat][city] = [];
+                    cache[origin][threat][city].push(a);
                 });
-                const originGroup = document.getElementById('origin-group');
-                // Remember currently checked origins
-                const prevChecked = new Set(getSelectedOrigins());
-                const isFirstBuild = originGroup.children.length === 0;
-                originGroup.innerHTML = '';
-                const sortedOrigins = [...originsInWindow].sort((a, b) => {
+
+                alarmCache = cache;
+                cacheOrigins = Object.keys(cache).sort((a, b) => {
                     if (a === '') return 1;
                     if (b === '') return -1;
                     return a.localeCompare(b);
                 });
-                sortedOrigins.forEach(origin => {
+            }
+
+            function getSelectedOrigins() {
+                const checks = document.querySelectorAll('#origin-group input[type="checkbox"]');
+                const selected = [];
+                checks.forEach(cb => { if (cb.checked) selected.push(cb.value); });
+                return selected;
+            }
+
+            function rebuildOriginCheckboxes(selectAll = false) {
+                if (!alarmCache) buildAlarmCache();
+
+                const originGroup = document.getElementById('origin-group');
+                const prevChecked = new Set(getSelectedOrigins());
+                const isFirstBuild = originGroup.children.length === 0;
+                originGroup.innerHTML = '';
+
+                cacheOrigins.forEach(origin => {
                     const label = document.createElement('label');
                     const cb = document.createElement('input');
                     cb.type = 'checkbox';
                     cb.value = origin;
-                    // On first build or time change, check all; otherwise preserve previous state
                     cb.checked = (isFirstBuild || selectAll) ? true : prevChecked.has(origin);
-                    cb.onchange = updateDisplay;
+                    cb.onchange = debouncedUpdateDisplay;
 
                     let displayName = origin || (isEn ? 'unlabeled' : 'בבירור');
                     if (!isEn) {
@@ -687,9 +717,7 @@
                             'Iran': 'איראן',
                             'Syria': 'סוריה'
                         };
-                        if (translations[origin]) {
-                            displayName = translations[origin];
-                        }
+                        if (translations[origin]) displayName = translations[origin];
                     }
 
                     label.appendChild(cb);
@@ -699,6 +727,8 @@
             }
 
             function updateDisplay() {
+                if (!alarmCache) buildAlarmCache();
+
                 markerLayer.clearLayers();
                 markerMap = {};
 
@@ -706,33 +736,20 @@
                 if (document.getElementById('threat-0').checked) selectedThreats.push(0);
                 if (document.getElementById('threat-5').checked) selectedThreats.push(5);
 
-                const selectedOrigins = new Set(getSelectedOrigins());
+                const selectedOrigins = getSelectedOrigins();
 
-                const now = new Date();
-                const filteredAlarms = alarms.filter(a => {
-                    const d = parseDate(a.time);
-                    if (!d || isNaN(d)) return false;
-
-                    if (DATE_FROM === 'last24h') {
-                        if ((now - d) > 24 * 60 * 60 * 1000) return false;
-                    } else {
-                        const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                        if (ds < DATE_FROM || ds > (DATE_TO || '9999-12-31')) return false;
-                    }
-
-                    if (!selectedThreats.includes(a.threat)) return false;
-                    const origin = (a.origin && String(a.origin).trim()) || '';
-                    if (!selectedOrigins.has(origin)) return false;
-                    return true;
-                });
-
+                // Fast lookup from cache — no full array scan
                 const locAlarms = {};
-                filteredAlarms.forEach(a => {
-                    const city = a.cities;
-                    if (city) {
-                        if (!locAlarms[city]) locAlarms[city] = [];
-                        locAlarms[city].push(a);
-                    }
+                selectedOrigins.forEach(origin => {
+                    if (!alarmCache[origin]) return;
+                    selectedThreats.forEach(threat => {
+                        const cities = alarmCache[origin][threat];
+                        if (!cities) return;
+                        Object.entries(cities).forEach(([city, alarmList]) => {
+                            if (!locAlarms[city]) locAlarms[city] = [];
+                            locAlarms[city].push(...alarmList);
+                        });
+                    });
                 });
 
                 currentLocDataArr = [];
@@ -762,6 +779,11 @@
                 redrawLabels();
                 updateAutocomplete();
             }
+
+            // Debounce collapses rapid checkbox clicks into one redraw.
+            // We also wrap the heavy work in requestAnimationFrame so the browser
+            // paints checkbox state *before* the map redraws, keeping UI responsive.
+            const debouncedUpdateDisplay = debounce(() => requestAnimationFrame(updateDisplay), 1000);
 
             function updateColorbar(div, maxC) {
                 const title = isEn ? 'Number of Alarms' : 'מספר אזעקות';
@@ -835,6 +857,7 @@
                     dateFromInput.value = DATE_FROM;
                     dateToInput.value = DATE_TO;
                     dateDropdown.classList.remove('show');
+                    alarmCache = null;
                     rebuildOriginCheckboxes(true);
                     updateDisplay();
                 };
@@ -919,6 +942,7 @@
                 DATE_TO = dateToInput.value;
                 document.querySelectorAll('.campaign-btn').forEach(b => b.classList.remove('active'));
                 dateDropdown.classList.remove('show');
+                alarmCache = null;
                 rebuildOriginCheckboxes(true);
                 updateDisplay();
             };
@@ -944,8 +968,8 @@
                 };
             }
 
-            document.getElementById('threat-0').onchange = updateDisplay;
-            document.getElementById('threat-5').onchange = updateDisplay;
+            document.getElementById('threat-0').onchange = debouncedUpdateDisplay;
+            document.getElementById('threat-5').onchange = debouncedUpdateDisplay;
 
             rebuildOriginCheckboxes();
             updateDisplay();
