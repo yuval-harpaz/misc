@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="logo.png">
+    <title>אזעקות לפי זמן - מפת חום</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #floating-title {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 20, 0.85);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 1.25em;
+            font-weight: 600;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+            direction: rtl;
+            text-align: center;
+            white-space: nowrap;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #floating-title .title-top {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .title-icon {
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: transform 0.2s, filter 0.2s;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .title-icon:hover {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 5px #7eb8ff);
+        }
+
+        #floating-title .subtitle {
+            display: block;
+            font-size: 0.65em;
+            color: #aac4ff;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+
+        #floating-title .subtitle a {
+            color: #7eb8ff;
+            text-decoration: none;
+        }
+
+        #floating-title .subtitle a:hover {
+            text-decoration: underline;
+        }
+
+        /* Dropdown Styles */
+        #date-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: rgba(15, 15, 30, 0.95);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            width: 190px;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1090;
+            backdrop-filter: blur(15px);
+        }
+
+        #date-dropdown.show {
+            display: flex;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(0px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(10px);
+            }
+        }
+
+        .dropdown-section-title {
+            font-size: 0.85em;
+            color: #aac4ff;
+            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(170, 196, 255, 0.2);
+            padding-bottom: 4px;
+            text-align: right;
+        }
+
+        .campaign-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #eee;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: right;
+            font-size: 0.9em;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .campaign-btn:hover {
+            background: rgba(126, 184, 255, 0.15);
+            border-color: #7eb8ff;
+        }
+
+        .campaign-btn.active {
+            background: rgba(126, 184, 255, 0.3);
+            border-color: #7eb8ff;
+            font-weight: 600;
+        }
+
+        .custom-range {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #apply-date-btn {
+            margin-top: 4px;
+            background: rgba(126, 184, 255, 0.2);
+            border: 1px solid #7eb8ff;
+            color: #fff;
+            padding: 7px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-family: inherit;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+        #apply-date-btn:hover {
+            background: rgba(126, 184, 255, 0.4);
+        }
+
+        .date-input-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .date-input-group label {
+            font-size: 0.9em;
+            color: #ccc;
+            min-width: 45px;
+            text-align: inherit;
+        }
+
+        .date-input-group input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            flex-grow: 1;
+            outline: none;
+            color-scheme: dark;
+        }
+
+        #search-container {
+            position: absolute;
+            top: 95px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 250px;
+            direction: rtl;
+        }
+
+        #search-input {
+            width: 100%;
+            padding: 8px 15px;
+            font-size: 1em;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.9);
+            color: #222;
+            backdrop-filter: blur(5px);
+            outline: none;
+        }
+
+        #autocomplete-list {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 0 0 10px 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .autocomplete-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 0.95em;
+            color: #333;
+        }
+
+        .autocomplete-item:hover {
+            background: #f0f5ff;
+        }
+
+        /* Filter Floating Panel Styles */
+        #filter-dropdown {
+            position: fixed;
+            top: 70px;
+            left: 20px;
+            /* default, repositioned by JS */
+            background: rgba(15, 15, 30, 0.95);
+            border-radius: 10px;
+            padding: 10px 12px 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            width: 130px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1200;
+            backdrop-filter: blur(15px);
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+
+        #filter-dropdown.show {
+            display: flex;
+        }
+
+        #filter-dropdown.dragging {
+            cursor: grabbing;
+            opacity: 0.92;
+        }
+
+        #filter-close {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 18px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            color: #aac4ff;
+            font-size: 12px;
+            line-height: 18px;
+            text-align: center;
+            cursor: pointer;
+            padding: 0;
+            transition: background 0.2s;
+        }
+
+        #filter-close:hover {
+            background: rgba(255, 80, 80, 0.4);
+            color: #fff;
+        }
+
+        .filter-section-title {
+            font-size: 0.8em;
+            color: #aac4ff;
+            margin-bottom: 2px;
+            border-bottom: 1px solid rgba(170, 196, 255, 0.2);
+            padding-bottom: 3px;
+            text-align: right;
+        }
+
+        .filter-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0;
+            cursor: pointer;
+            font-size: 0.85em;
+            color: #eee;
+        }
+
+        .filter-group input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
+            accent-color: #7eb8ff;
+        }
+
+        /* Time-of-day filter */
+        .time-range-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .time-range-row label {
+            font-size: 0.9em;
+            color: #ccc;
+            min-width: 28px;
+            text-align: inherit;
+        }
+
+        .time-range-row input[type="time"] {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 5px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            flex-grow: 1;
+            outline: none;
+            color-scheme: dark;
+        }
+
+        .alarm-popup {
+            direction: inherit;
+            text-align: inherit;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .alarm-popup::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .alarm-popup::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .alarm-popup::-webkit-scrollbar-thumb {
+            background: rgba(126, 184, 255, 0.4);
+            border-radius: 3px;
+        }
+
+        .alarm-popup h4 {
+            margin: 0 0 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 5px;
+            font-size: 1.1em;
+            position: sticky;
+            top: 0;
+            background: inherit;
+            z-index: 1;
+        }
+
+        .alarm-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9em;
+        }
+
+        .alarm-item:last-child {
+            border-bottom: none;
+        }
+
+        .alarm-icon {
+            font-size: 1.1em;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .alarm-time-text {
+            color: #ccc;
+            white-space: nowrap;
+        }
+
+        .alarm-origin-text {
+            color: #88aaff;
+            font-size: 0.85em;
+        }
+
+        @media (max-width: 600px) {
+            #floating-title {
+                font-size: 1.1em;
+                width: 92%;
+            }
+
+            #search-container {
+                top: 85px;
+                width: 220px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="floating-title">
+        <div class="title-top">
+            <span id="filter-icon" class="title-icon" title="סינון"><svg width="16" height="16" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg></span>
+            <span id="calendar-icon" class="title-icon" title="סינון לפי זמן">📅</span>
+            <span id="main-title-text">אזעקות לפי זמן</span>
+        </div>
+        <div class="subtitle">
+            מאת <a href="https://oct7database.com" target="_blank">oct7database.com</a> · נתוני פקע"ר דרך
+            <a href="https://www.tzevaadom.co.il/historical" target="_blank">צבע אדום</a>
+        </div>
+
+        <!-- Dropdown Menu -->
+        <div id="date-dropdown">
+            <div class="dropdown-section-title">מבצעים</div>
+            <div id="campaign-list" style="display: flex; flex-direction: column; gap: 6px;">
+                <!-- Campaigns will be injected here -->
+            </div>
+
+            <div class="dropdown-section-title" style="margin-top: 5px;">טווח תאריכים מותאם</div>
+            <div class="custom-range">
+                <div class="date-input-group">
+                    <label>מ:</label>
+                    <input type="date" id="date-from">
+                </div>
+                <div class="date-input-group">
+                    <label>עד:</label>
+                    <input type="date" id="date-to">
+                </div>
+                <button id="apply-date-btn">✔ החל</button>
+            </div>
+
+            <div class="dropdown-section-title" style="margin-top: 5px;">שעות ביום</div>
+            <div class="custom-range">
+                <div class="time-range-row">
+                    <label>מ:</label>
+                    <input type="time" id="time-from" value="00:00">
+                </div>
+                <div class="time-range-row">
+                    <label>עד:</label>
+                    <input type="time" id="time-to" value="23:59">
+                </div>
+                <button id="apply-time-btn">✔ החל שעות</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Filter Floating Panel -->
+    <div id="filter-dropdown" dir="rtl">
+        <button id="filter-close">&times;</button>
+        <div class="filter-section-title">סוג איום</div>
+        <div class="filter-group" id="threat-group">
+            <label><input type="checkbox" value="0" checked id="threat-0"> רקטות</label>
+            <label><input type="checkbox" value="5" checked id="threat-5"> כלי טיס עויין</label>
+        </div>
+        <div class="filter-section-title" id="origin-section-title">מקור</div>
+        <div class="filter-group" id="origin-group">
+            <!-- Origin checkboxes will be injected dynamically -->
+        </div>
+    </div>
+
+    <div id="search-container">
+        <input id="search-input" type="text" placeholder="חיפוש יישוב..." autocomplete="off" />
+        <div id="autocomplete-list"></div>
+    </div>
+
+
+
+    <div id="map"></div>
+
+    <script>
+        const GITHUB_RAW = 'https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/';
+
+        // Campaigns Definition
+        const campaigns = [
+            { name: '24 שעות אחרונות', name_en: 'Last 24 hours', start: 'last24h', end: null },
+            { name: 'שאגת הארי', name_en: 'Epic Fury', start: '2026-02-28', end: null },
+            { name: 'עם כלביא', name_en: 'Twelve-Day War', start: '2025-06-13', end: '2025-06-24' },
+            { name: 'חיצי הצפון', name_en: 'Northern Arrows', start: '2024-09-19', end: '2024-11-27' },
+            { name: 'מגן ברזל', name_en: 'Iron Shield', start: '2024-04-13', end: '2024-04-14' },
+            { name: 'חרבות ברזל', name_en: 'Iron Swords', start: '2023-10-07', end: null },
+            { name: '7 באוקטובר', name_en: 'Oct 7', start: '2023-10-07', end: '2023-10-07' },
+            { name: 'מגן וחץ', name_en: 'Shield and Arrow', start: '2023-05-09', end: '2023-05-13' },
+            { name: 'עלות השחר', name_en: 'Breaking Dawn', start: '2022-08-05', end: '2022-08-08' },
+            { name: 'שומר החומות', name_en: 'Guardian of the Walls', start: '2021-05-10', end: '2021-05-21' },
+            { name: 'חגורה שחורה', name_en: 'Black Belt', start: '2019-11-12', end: '2019-11-14' },
+        ];
+
+
+
+
+        let DATE_FROM = campaigns[1].start;
+        let DATE_TO = new Date().toISOString().slice(0, 10);
+
+        // Time-of-day filter (applied on button click, not real-time)
+        let TIME_FROM_MINUTES = 0;     // 00:00
+        let TIME_TO_MINUTES   = 1439;  // 23:59
+
+        function parseDate(str) {
+            if (!str) return null;
+            const iso = str.replace(' ', 'T');
+            // Force Israel Winter Time (+02:00) if no timezone specified
+            if (iso.includes('+') || iso.includes('Z')) return new Date(iso);
+            return new Date(iso + "+02:00");
+        }
+        function formatTime(d) {
+            const opts = {
+                timeZone: 'Asia/Jerusalem',
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+                hour12: false
+            };
+            const formatter = new Intl.DateTimeFormat('he-IL', opts);
+            const parts = formatter.formatToParts(d);
+            const get = type => parts.find(p => p.type === type).value;
+            return `${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')}`;
+        }
+        async function fetchCSV(f) {
+            const r = await fetch(GITHUB_RAW + f);
+            const text = await r.text();
+            return new Promise(res => Papa.parse(text, { header: true, dynamicTyping: true, complete: d => res(d.data) }));
+        }
+        function buildPopupContent(loc, alarms, isEn) {
+            const titleText = isEn ? `${loc} — ${alarms.length} Alarms` : `${loc} — ${alarms.length} אזעקות`;
+            // Sort alarms from last (top) to first (bottom)
+            const sortedAlarms = [...alarms].sort((a, b) => parseDate(b.time) - parseDate(a.time));
+
+            let html = `<div class="alarm-popup" style="direction:${isEn ? 'ltr' : 'rtl'}; text-align:${isEn ? 'left' : 'right'};">
+                <h4>${titleText}</h4>`;
+
+            const flagMap = {
+                'Iran': '🇮🇷', 'איראן': '🇮🇷',
+                'Iraq': '🇮🇶', 'עיראק': '🇮🇶',
+                'Yemen': '🇾🇪', 'תימן': '🇾🇪',
+                'Lebanon': '🇱🇧', 'לבנון': '🇱🇧',
+                'Gaza': '🇵🇸', 'עזה': '🇵🇸',
+                'Syria': '🇸🇾', 'סוריה': '🇸🇾'
+            };
+
+            sortedAlarms.forEach(a => {
+                const dateObj = parseDate(a.time);
+                const timeStr = formatTime(dateObj);
+                const threatIcon = a.threat === 5
+                    ? '<span class="alarm-icon" style="color:orange;">🛩️</span>'
+                    : '<span class="alarm-icon" style="color:red;">🚀</span>';
+
+                const origin = (a.origin && String(a.origin).trim()) || '';
+                const flagEmoji = flagMap[origin] || (origin ? '🚩' : '');
+                const originLabel = flagEmoji ? ` <span class="alarm-icon">${flagEmoji}</span>${flagMap[origin] ? '' : `<span class="alarm-origin-text">${origin}</span>`}` : '';
+
+                html += `<div class="alarm-item">
+                    ${threatIcon}
+                    <span class="alarm-time-text">${timeStr}</span>
+                    ${originLabel}
+                </div>`;
+            });
+
+            html += `</div>`;
+            return html;
+        }
+        function haversine(lat1, lng1, lat2, lng2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+        function findLocalMaxima(entries, radiusMeters, minCount) {
+            return entries.filter(a => {
+                if (a.count < minCount) return false;
+                return entries.every(b => {
+                    if (b === a) return true;
+                    const dist = haversine(a.lat, a.lng, b.lat, b.lng);
+                    return dist > radiusMeters || a.count >= b.count;
+                });
+            });
+        }
+
+        async function initMap() {
+            const [coord, alarms] = await Promise.all([fetchCSV('data/coord.csv'), fetchCSV('data/alarms.csv')]);
+
+            const coordMap = {};
+            coord.forEach(c => {
+                const lat = Number(c.lat), lng = Number(c.long);
+                if (!isNaN(lat) && !isNaN(lng)) coordMap[c.loc] = [lat, lng];
+            });
+
+            const isEn = new URLSearchParams(window.location.search).has('en');
+            /*
+            // Hide the floating title if the 'notitle' URL parameter is present
+            if (new URLSearchParams(window.location.search).has('notitle'))
+                document.getElementById('floating-title').style.display = 'none';
+            */
+
+            if (isEn) {
+                document.documentElement.lang = 'en';
+                document.documentElement.dir = 'ltr';
+                const ft = document.getElementById('floating-title');
+                if (ft) ft.style.direction = 'ltr';
+                document.getElementById('search-container').style.display = 'none';
+                document.getElementById('main-title-text').textContent = 'Alarms by Time';
+                document.querySelector('.subtitle').innerHTML = 'By <a href="https://oct7database.com" target="_blank">oct7database.com</a> · Home Front Command data via <a href="https://www.tzevaadom.co.il/historical" target="_blank">Tzevaadom</a>';
+                const threatLabels = document.querySelectorAll('#threat-group label');
+                threatLabels[0].childNodes[1].textContent = ' Rockets';
+                threatLabels[1].childNodes[1].textContent = ' Hostile Aircraft';
+
+                document.querySelectorAll('.dropdown-section-title')[0].textContent = 'Campaigns';
+                document.querySelectorAll('.dropdown-section-title')[1].textContent = 'Custom Range';
+                document.getElementById('apply-date-btn').textContent = '✔ Apply';
+                document.querySelectorAll('.filter-section-title')[0].textContent = 'Threat Type';
+                document.getElementById('origin-section-title').textContent = 'Origin';
+                document.querySelectorAll('.date-input-group label')[0].textContent = 'From:';
+                document.querySelectorAll('.date-input-group label')[1].textContent = 'To:';
+                document.querySelectorAll('.time-range-row label')[0].textContent = 'From:';
+                document.querySelectorAll('.time-range-row label')[1].textContent = 'To:';
+                document.getElementById('apply-time-btn').textContent = '✔ Apply Hours';
+                document.querySelectorAll('.dropdown-section-title')[2].textContent = 'Time of Day';
+                document.getElementById('calendar-icon').title = 'Filter by Time';
+                document.getElementById('filter-icon').title = 'Filters';
+            }
+
+            const map = L.map('map').setView([31.5, 34.75], 8);
+            const tileUrl = isEn
+                ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+                : 'https://cdnil.govmap.gov.il/xyz/heb/{z}/{x}/{y}.png';
+            const attribution = isEn
+                ? '&copy; OpenStreetMap contributors &copy; CARTO'
+                : '© המרכז למיפוי ישראל www.govmap.gov.il';
+
+            L.tileLayer(tileUrl, { attribution: attribution, maxZoom: 18 }).addTo(map);
+
+            let markerLayer = L.layerGroup().addTo(map);
+            let labelLayer = L.layerGroup().addTo(map);
+            let currentLocDataArr = [];
+            let markerMap = {};
+            let southernmost = null;
+
+            const colorbar = L.control({ position: 'bottomleft' });
+            let colorbarDiv = null;
+
+            function countToColor(count, maxC) {
+                const v = count / (maxC || 1);
+                const stops = [
+                    [0.00, [20, 40, 160]], [0.20, [50, 130, 220]], [0.38, [60, 200, 210]],
+                    [0.55, [100, 200, 80]], [0.70, [255, 220, 50]], [0.85, [240, 100, 20]],
+                    [1.00, [150, 15, 15]],
+                ];
+                for (let i = 1; i < stops.length; i++) {
+                    const [t0, c0] = stops[i - 1], [t1, c1] = stops[i];
+                    if (v <= t1) {
+                        const t = (v - t0) / (t1 - t0);
+                        return `rgb(${Math.round(c0[0] + t * (c1[0] - c0[0]))},${Math.round(c0[1] + t * (c1[1] - c0[1]))},${Math.round(c0[2] + t * (c1[2] - c0[2]))})`;
+                    }
+                }
+                return `rgb(160,20,20)`;
+            }
+
+            // --- Debounce helper ---
+            function debounce(fn, delay) {
+                let timer;
+                return function (...args) {
+                    clearTimeout(timer);
+                    timer = setTimeout(() => fn.apply(this, args), delay);
+                };
+            }
+
+            // --- Alarm cache ---
+            // Rebuilt once per time-window change. Keyed by origin, then threat, then city.
+            // Structure: cache[origin][threat][city] = [alarm, ...]
+            let alarmCache = null;   // populated by buildAlarmCache()
+            let cacheOrigins = [];   // sorted list of origins in current window
+
+            function buildAlarmCache() {
+                const now = new Date();
+                const dateEnd = DATE_TO || '9999-12-31';
+                const cache = {};
+
+                alarms.forEach(a => {
+                    const d = parseDate(a.time);
+                    if (!d || isNaN(d)) return;
+
+                    if (DATE_FROM === 'last24h') {
+                        if ((now - d) > 24 * 60 * 60 * 1000) return;
+                    } else {
+                        const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        if (ds < DATE_FROM || ds > dateEnd) return;
+                    }
+
+                    const origin = (a.origin && String(a.origin).trim()) || '';
+                    const threat = a.threat;
+                    const city = a.cities;
+                    if (!city) return;
+
+                    if (!cache[origin]) cache[origin] = {};
+                    if (!cache[origin][threat]) cache[origin][threat] = {};
+                    if (!cache[origin][threat][city]) cache[origin][threat][city] = [];
+                    cache[origin][threat][city].push(a);
+                });
+
+                alarmCache = cache;
+                cacheOrigins = Object.keys(cache).sort((a, b) => {
+                    if (a === '') return 1;
+                    if (b === '') return -1;
+                    return a.localeCompare(b);
+                });
+            }
+
+            function getSelectedOrigins() {
+                const checks = document.querySelectorAll('#origin-group input[type="checkbox"]');
+                const selected = [];
+                checks.forEach(cb => { if (cb.checked) selected.push(cb.value); });
+                return selected;
+            }
+
+            function rebuildOriginCheckboxes(selectAll = false) {
+                if (!alarmCache) buildAlarmCache();
+
+                const originGroup = document.getElementById('origin-group');
+                const prevChecked = new Set(getSelectedOrigins());
+                const isFirstBuild = originGroup.children.length === 0;
+                originGroup.innerHTML = '';
+
+                cacheOrigins.forEach(origin => {
+                    const label = document.createElement('label');
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = origin;
+                    cb.checked = (isFirstBuild || selectAll) ? true : prevChecked.has(origin);
+                    cb.onchange = debouncedUpdateDisplay;
+
+                    let displayName = origin || (isEn ? 'unlabeled' : 'בבירור');
+                    if (!isEn) {
+                        const translations = {
+                            'FA': 'אזעקת שווא',
+                            'Iraq': 'עיראק',
+                            'Yemen': 'תימן',
+                            'Lebanon': 'לבנון',
+                            'Gaza': 'עזה',
+                            'Iran': 'איראן',
+                            'Syria': 'סוריה'
+                        };
+                        if (translations[origin]) displayName = translations[origin];
+                    }
+
+                    label.appendChild(cb);
+                    label.appendChild(document.createTextNode(' ' + displayName));
+                    originGroup.appendChild(label);
+                });
+            }
+
+            function updateDisplay() {
+                if (!alarmCache) buildAlarmCache();
+
+                markerLayer.clearLayers();
+                markerMap = {};
+
+                const selectedThreats = [];
+                if (document.getElementById('threat-0').checked) selectedThreats.push(0);
+                if (document.getElementById('threat-5').checked) selectedThreats.push(5);
+
+                const selectedOrigins = getSelectedOrigins();
+
+                // Time-of-day filter helper
+                function passesTimeFilter(a) {
+                    const d = parseDate(a.time);
+                    if (!d || isNaN(d)) return false;
+                    const parts = new Intl.DateTimeFormat('he-IL', {
+                        timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false
+                    }).formatToParts(d);
+                    const h = parseInt(parts.find(p => p.type === 'hour').value);
+                    const m = parseInt(parts.find(p => p.type === 'minute').value);
+                    const min = h * 60 + m;
+                    if (TIME_FROM_MINUTES <= TIME_TO_MINUTES) {
+                        return min >= TIME_FROM_MINUTES && min <= TIME_TO_MINUTES;
+                    } else {
+                        // Wraps midnight (e.g. 22:00 – 06:00)
+                        return min >= TIME_FROM_MINUTES || min <= TIME_TO_MINUTES;
+                    }
+                }
+
+                // Fast lookup from cache — no full array scan
+                const locAlarms = {};
+                selectedOrigins.forEach(origin => {
+                    if (!alarmCache[origin]) return;
+                    selectedThreats.forEach(threat => {
+                        const cities = alarmCache[origin][threat];
+                        if (!cities) return;
+                        Object.entries(cities).forEach(([city, alarmList]) => {
+                            const filtered = TIME_FROM_MINUTES === 0 && TIME_TO_MINUTES === 1439
+                                ? alarmList
+                                : alarmList.filter(passesTimeFilter);
+                            if (!filtered.length) return;
+                            if (!locAlarms[city]) locAlarms[city] = [];
+                            locAlarms[city].push(...filtered);
+                        });
+                    });
+                });
+
+                currentLocDataArr = [];
+                Object.entries(locAlarms).forEach(([loc, ts]) => {
+                    const coords = coordMap[loc];
+                    if (coords) currentLocDataArr.push({ loc, lat: coords[0], lng: coords[1], count: ts.length });
+                });
+
+                const maxCount = Math.max(...currentLocDataArr.map(d => d.count), 1);
+                southernmost = currentLocDataArr.length ? currentLocDataArr.reduce((s, p) => p.lat < s.lat ? p : s, currentLocDataArr[0]) : null;
+
+                const sortedEntries = Object.entries(locAlarms).sort((a, b) => a[1].length - b[1].length);
+                sortedEntries.forEach(([loc, ts]) => {
+                    const coords = coordMap[loc];
+                    if (!coords) return;
+                    const count = ts.length;
+                    const marker = L.circleMarker(coords, {
+                        radius: Math.max(Math.sqrt(count) * 2.5, 4),
+                        fillColor: countToColor(count, maxCount),
+                        color: 'none', fillOpacity: 0.8
+                    }).bindPopup(buildPopupContent(loc, ts, isEn), { maxWidth: 280 })
+                        .addTo(markerLayer);
+                    markerMap[loc] = marker;
+                });
+
+                if (colorbarDiv) updateColorbar(colorbarDiv, maxCount);
+                redrawLabels();
+                updateAutocomplete();
+            }
+
+            // Debounce collapses rapid checkbox clicks into one redraw.
+            // We also wrap the heavy work in requestAnimationFrame so the browser
+            // paints checkbox state *before* the map redraws, keeping UI responsive.
+            const debouncedUpdateDisplay = debounce(() => requestAnimationFrame(updateDisplay), 1000);
+
+            function updateColorbar(div, maxC) {
+                const title = isEn ? 'Number of Alarms' : 'מספר אזעקות';
+                div.innerHTML = `<div style="font-size:11px; color:#445; margin-bottom:2px;">${title}</div>`;
+                const barH = 140, barW = 14;
+                const canvas = document.createElement('canvas');
+                canvas.width = barW; canvas.height = barH;
+                const ctx = canvas.getContext('2d');
+                for (let i = 0; i < barH; i++) {
+                    ctx.fillStyle = countToColor(Math.round((1 - i / barH) * maxC), maxC);
+                    ctx.fillRect(0, i, barW, 1);
+                }
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'flex'; wrapper.style.gap = '4px';
+                const labels = document.createElement('div');
+                labels.style.display = 'flex'; labels.style.flexDirection = 'column'; labels.style.justifyContent = 'space-between';
+                labels.style.fontSize = '11px'; labels.innerHTML = `<span>${maxC}</span><span>${Math.round(maxC / 2)}</span><span>0</span>`;
+                wrapper.appendChild(canvas); wrapper.appendChild(labels);
+                div.appendChild(wrapper);
+            }
+
+            colorbar.onAdd = function () {
+                colorbarDiv = L.DomUtil.create('div', 'alarms-colorbar');
+                colorbarDiv.style.cssText = 'background:rgba(255,255,255,0.9); padding:8px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+                return colorbarDiv;
+            };
+            colorbar.addTo(map);
+
+            function redrawLabels() {
+                labelLayer.clearLayers();
+                if (!currentLocDataArr.length) return;
+                const z = map.getZoom();
+                const r = 30000 / Math.pow(2, z - 7);
+                const minC = z <= 7 ? 10 : (z <= 9 ? 5 : (z <= 11 ? 2 : 1));
+                const maxima = findLocalMaxima(currentLocDataArr, r, minC);
+                maxima.forEach(({ lat, lng, count }) => {
+                    L.marker([lat, lng], {
+                        icon: L.divIcon({ className: 'count-label', html: `<div style="font-size:11px; font-weight:800; color:#fff; text-shadow:0 0 3px #000;">${count}</div>`, iconSize: [30, 14] }),
+                        interactive: false
+                    }).addTo(labelLayer);
+                });
+            }
+
+            map.on('zoomend', redrawLabels);
+
+            // UI Elements
+            const calendarIcon = document.getElementById('calendar-icon');
+            const filterIcon = document.getElementById('filter-icon');
+            const dateDropdown = document.getElementById('date-dropdown');
+            const filterDropdown = document.getElementById('filter-dropdown');
+            const campaignList = document.getElementById('campaign-list');
+            const dateFromInput = document.getElementById('date-from');
+            const dateToInput = document.getElementById('date-to');
+            const searchInput = document.getElementById('search-input');
+            const acList = document.getElementById('autocomplete-list');
+
+            dateFromInput.value = DATE_FROM;
+            dateToInput.value = DATE_TO;
+
+            // Initialize Campaigns UI
+            campaigns.forEach((camp, idx) => {
+                const btn = document.createElement('div');
+                btn.className = 'campaign-btn';
+                if (idx === 1) btn.classList.add('active');
+                btn.textContent = isEn ? camp.name_en : camp.name;
+                btn.onclick = () => {
+                    document.querySelectorAll('.campaign-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    DATE_FROM = camp.start;
+                    DATE_TO = camp.end || new Date().toISOString().slice(0, 10);
+                    dateFromInput.value = DATE_FROM;
+                    dateToInput.value = DATE_TO;
+                    dateDropdown.classList.remove('show');
+                    alarmCache = null;
+                    rebuildOriginCheckboxes(true);
+                    updateDisplay();
+                };
+                campaignList.appendChild(btn);
+            });
+
+            if (isEn) {
+                document.querySelectorAll('.date-input-group label').forEach(l => l.style.textAlign = 'left');
+                document.querySelectorAll('.campaign-btn').forEach(b => b.style.textAlign = 'left');
+            }
+
+            calendarIcon.onclick = (e) => {
+                e.stopPropagation();
+                filterDropdown.classList.remove('show');
+                dateDropdown.classList.toggle('show');
+            };
+
+            filterIcon.onclick = (e) => {
+                e.stopPropagation();
+                dateDropdown.classList.remove('show');
+                const wasOpen = filterDropdown.classList.contains('show');
+                filterDropdown.classList.toggle('show');
+                if (!wasOpen) {
+                    // Position just to the left of the title bar
+                    const titleRect = document.getElementById('floating-title').getBoundingClientRect();
+                    const panelW = filterDropdown.offsetWidth;
+                    filterDropdown.style.left = (titleRect.left - panelW - 10) + 'px';
+                    filterDropdown.style.top = titleRect.top + 'px';
+                    // Clamp: if it would go off-screen left, place at 10px
+                    if (parseFloat(filterDropdown.style.left) < 10) {
+                        filterDropdown.style.left = '10px';
+                    }
+                }
+            };
+
+            document.getElementById('filter-close').onclick = (e) => {
+                e.stopPropagation();
+                filterDropdown.classList.remove('show');
+            };
+
+            // Drag logic for filter panel
+            (function initDrag() {
+                let isDragging = false, startX, startY, startLeft, startTop;
+                function onStart(e) {
+                    // Don't drag when interacting with inputs/labels
+                    if (e.target.closest('label, input, button, .filter-group')) return;
+                    isDragging = true;
+                    filterDropdown.classList.add('dragging');
+                    const pos = e.touches ? e.touches[0] : e;
+                    startX = pos.clientX; startY = pos.clientY;
+                    const rect = filterDropdown.getBoundingClientRect();
+                    startLeft = rect.left; startTop = rect.top;
+                    e.preventDefault();
+                }
+                function onMove(e) {
+                    if (!isDragging) return;
+                    const pos = e.touches ? e.touches[0] : e;
+                    const dx = pos.clientX - startX, dy = pos.clientY - startY;
+                    filterDropdown.style.left = (startLeft + dx) + 'px';
+                    filterDropdown.style.top = (startTop + dy) + 'px';
+                }
+                function onEnd() {
+                    isDragging = false;
+                    filterDropdown.classList.remove('dragging');
+                }
+                filterDropdown.addEventListener('mousedown', onStart);
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+                filterDropdown.addEventListener('touchstart', onStart, { passive: false });
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+            })();
+
+            document.addEventListener('click', (e) => {
+                if (!dateDropdown.contains(e.target) && e.target !== calendarIcon) {
+                    dateDropdown.classList.remove('show');
+                }
+            });
+
+            document.getElementById('apply-date-btn').onclick = () => {
+                DATE_FROM = dateFromInput.value;
+                DATE_TO = dateToInput.value;
+                document.querySelectorAll('.campaign-btn').forEach(b => b.classList.remove('active'));
+                dateDropdown.classList.remove('show');
+                alarmCache = null;
+                rebuildOriginCheckboxes(true);
+                updateDisplay();
+            };
+
+            document.getElementById('apply-time-btn').onclick = () => {
+                const fromVal = document.getElementById('time-from').value || '00:00';
+                const toVal   = document.getElementById('time-to').value   || '23:59';
+                const [fromH, fromM] = fromVal.split(':').map(Number);
+                const [toH,   toM  ] = toVal.split(':').map(Number);
+                TIME_FROM_MINUTES = fromH * 60 + fromM;
+                TIME_TO_MINUTES   = toH   * 60 + toM;
+                dateDropdown.classList.remove('show');
+                updateDisplay();
+            };
+
+            function updateAutocomplete() {
+                const allLocs = Object.keys(markerMap).sort();
+                searchInput.oninput = () => {
+                    const q = searchInput.value.trim();
+                    acList.innerHTML = '';
+                    if (!q) return;
+                    allLocs.filter(l => l.includes(q)).slice(0, 10).forEach(loc => {
+                        const item = document.createElement('div');
+                        item.className = 'autocomplete-item';
+                        item.textContent = loc;
+                        item.onclick = () => {
+                            searchInput.value = loc;
+                            acList.innerHTML = '';
+                            const m = markerMap[loc];
+                            if (m) { map.setView(m.getLatLng(), 13); m.openPopup(); }
+                        };
+                        acList.appendChild(item);
+                    });
+                };
+            }
+
+            document.getElementById('threat-0').onchange = debouncedUpdateDisplay;
+            document.getElementById('threat-5').onchange = debouncedUpdateDisplay;
+
+            rebuildOriginCheckboxes();
+            updateDisplay();
+        }
+
+        initMap();
+    </script>
+</body>
+
+</html>
