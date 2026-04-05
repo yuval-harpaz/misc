@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Alarm Clusters – Scatter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.30.0/plotly.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; margin: 0; padding: 20px; }
+  h2 { text-align: center; color: #cce; margin-bottom: 4px; }
+  #subtitle { text-align:center; color:#9aa; font-size:13px; margin-bottom:14px; }
+  #status { text-align:center; color:#88aaff; min-height:22px; margin-bottom:6px; font-size:14px; }
+  #plot { width:100%; height:600px; }
+  #debug { display:none; margin-top:16px; background:#111; border:1px solid #334; border-radius:6px;
+           padding:12px; font-size:11px; color:#9ab; white-space:pre-wrap; max-height:220px; overflow-y:auto; }
+  #dbgToggle { margin-top:10px; display:block; text-align:center; color:#556; font-size:11px;
+               cursor:pointer; text-decoration:underline; }
+</style>
+</head>
+<body>
+<h2>Alarm Clusters — Max Distance vs. Median Latitude</h2>
+<div id="subtitle">Oct 7, 2023 onwards · Threat level 0 · Gaza (red) and Lebanon (green) only · Gaza clusters south of 31.3729°N excluded</div>
+<div id="status">Loading data…</div>
+<div id="plot"></div>
+<a id="dbgToggle" onclick="toggleDebug()">show debug log</a>
+<div id="debug"></div>
+
+<script>
+const ALARMS_URL = "https://raw.githubusercontent.com/yuval-harpaz/alarms/master/data/alarms.csv";
+const COORD_URL  = "https://raw.githubusercontent.com/yuval-harpaz/alarms/master/data/coord.csv";
+
+// Gaza south-filter threshold
+const GAZA_FILTER_LAT = 31.372874;
+const GAZA_FILTER_LON = 34.610435;
+
+let debugLines = [];
+function dbg(msg) { debugLines.push(msg); }
+function flushDebug() { document.getElementById("debug").textContent = debugLines.join("\n"); }
+function toggleDebug() {
+  const d = document.getElementById("debug");
+  const a = document.getElementById("dbgToggle");
+  flushDebug();
+  if (d.style.display === "block") { d.style.display = "none"; a.textContent = "show debug log"; }
+  else { d.style.display = "block"; a.textContent = "hide debug log"; }
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+function maxDist(points) {
+  if (points.length < 2) return 0;
+  let maxD = 0;
+  for (let i = 0; i < points.length; i++)
+    for (let j = i+1; j < points.length; j++) {
+      const d = haversine(points[i].lat, points[i].lon, points[j].lat, points[j].lon);
+      if (d > maxD) maxD = d;
+    }
+  return maxD;
+}
+
+function medianVal(arr) {
+  const s = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
+// Returns the city name closest to the centroid (mean lat/lon) of the cluster
+function closestToCentroid(points) {
+  if (points.length === 1) return points[0].city;
+  const meanLat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+  const meanLon = points.reduce((s, p) => s + p.lon, 0) / points.length;
+  let best = points[0];
+  let bestD = Infinity;
+  for (const p of points) {
+    const d = haversine(p.lat, p.lon, meanLat, meanLon);
+    if (d < bestD) { bestD = d; best = p; }
+  }
+  return best.city;
+}
+
+function splitBy20km(rows) {
+  if (rows.length <= 1) return [rows];
+  const n = rows.length;
+  const parent = Array.from({length: n}, (_, i) => i);
+  function find(x) { return parent[x] === x ? x : (parent[x] = find(parent[x])); }
+  function union(x, y) { parent[find(x)] = find(y); }
+  for (let i = 0; i < n; i++)
+    for (let j = i+1; j < n; j++)
+      if (haversine(rows[i].lat, rows[i].lon, rows[j].lat, rows[j].lon) <= 20)
+        union(i, j);
+  const groups = {};
+  for (let i = 0; i < n; i++) {
+    const k = find(i);
+    if (!groups[k]) groups[k] = [];
+    groups[k].push(rows[i]);
+  }
+  return Object.values(groups);
+}
+
+// Linear regression: returns {slope, intercept} for y ~ x
+function linReg(xs, ys) {
+  const n = xs.length;
+  if (n < 2) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / n;
+  const my = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) {
+    num += (xs[i] - mx) * (ys[i] - my);
+    den += (xs[i] - mx) ** 2;
+  }
+  if (den === 0) return null;
+  const slope = num / den;
+  const intercept = my - slope * mx;
+  return { slope, intercept };
+}
+
+function setStatus(msg) { document.getElementById("status").textContent = msg; }
+
+function fetchCSV(url) {
+  return new Promise((res, rej) => Papa.parse(url, {
+    download: true, header: true, skipEmptyLines: true,
+    complete: r => res(r.data),
+    error: e => rej(e)
+  }));
+}
+
+const ORIGIN_VARIANTS = {
+  "Gaza":    ["gaza", "עזה"],
+  "Lebanon": ["lebanon", "לבנון"],
+};
+function normalizeOrigin(raw) {
+  const r = (raw || "").toLowerCase();
+  for (const [label, variants] of Object.entries(ORIGIN_VARIANTS))
+    if (variants.some(v => r.includes(v))) return label;
+  return null;
+}
+
+async function main() {
+  setStatus("Fetching alarms.csv…");
+  let alarms, coords;
+  try { alarms = await fetchCSV(ALARMS_URL); }
+  catch(e) { setStatus("❌ Cannot load alarms.csv – " + e); return; }
+
+  setStatus("Fetching coord.csv…");
+  try { coords = await fetchCSV(COORD_URL); }
+  catch(e) { setStatus("❌ Cannot load coord.csv – " + e); return; }
+
+  dbg(`alarms: ${alarms.length} rows`);
+  dbg(`coords: ${coords.length} rows`);
+
+  setStatus("Processing…");
+
+  // coord lookup: loc → {lat, lon}
+  const coordMap = {};
+  for (const row of coords) {
+    const name = row["loc"]?.trim();
+    const lat  = parseFloat(row["lat"]);
+    const lon  = parseFloat(row["long"]);
+    if (name && !isNaN(lat) && !isNaN(lon)) coordMap[name] = { lat, lon };
+  }
+  dbg(`coordMap: ${Object.keys(coordMap).length} entries`);
+
+  // filter: Oct 7 2023 onwards, threat == 0
+  // keep threat value for logging
+  const filtered = alarms.filter(row => {
+    const t = String(row["time"] || "");
+    return new Date(t) >= new Date("2023-10-07") && String(row["threat"] || "").trim() === "0";
+  });
+  dbg(`filtered: ${filtered.length} rows`);
+
+  // expand to one entry per city with coords
+  const expanded = [];
+  for (const row of filtered) {
+    const cities = String(row["cities"] || "").split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    for (const city of cities) {
+      const c = coordMap[city];
+      if (c) expanded.push({
+        id:     String(row["id"] || "").trim(),
+        origin: String(row["origin"] || "").trim(),
+        threat: String(row["threat"] || "").trim(),
+        time:   String(row["time"]   || "").trim(),
+        city,
+        lat: c.lat,
+        lon: c.lon,
+      });
+    }
+  }
+  dbg(`expanded with coords: ${expanded.length}`);
+
+  // group by id
+  const byId = {};
+  for (const r of expanded) {
+    if (!byId[r.id]) byId[r.id] = [];
+    byId[r.id].push(r);
+  }
+
+  // split by origin, then by >20 km
+  const finalClusters = [];
+  for (const [id, rows] of Object.entries(byId)) {
+    const byOrigin = {};
+    for (const r of rows) {
+      const o = r.origin || "unknown";
+      if (!byOrigin[o]) byOrigin[o] = [];
+      byOrigin[o].push(r);
+    }
+    for (const [origin, oRows] of Object.entries(byOrigin))
+      for (const sg of splitBy20km(oRows))
+        finalClusters.push({ id, origin, threat: oRows[0].threat, time: oRows[0].time, points: sg });
+  }
+  dbg(`final clusters: ${finalClusters.length}`);
+
+  // compute stats per cluster, keep Gaza and Lebanon only
+  let clusters = finalClusters
+    .map(c => {
+      const lats = c.points.map(p => p.lat);
+      const lons = c.points.map(p => p.lon);
+      const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+      const centerLon = lons.reduce((a, b) => a + b, 0) / lons.length;
+      return {
+        origin:    normalizeOrigin(c.origin),
+        threat:    c.threat,
+        time:      c.time,
+        maxD:      maxDist(c.points),
+        medianLat: medianVal(lats),
+        centerLat,
+        centerLon,
+        n:         c.points.length,
+        closestCity: closestToCentroid(c.points),
+        id:        c.id,
+      };
+    })
+    .filter(c => c.origin === "Gaza" || c.origin === "Lebanon")
+    .filter(c => c.n > 1);
+
+  // Filter out Gaza clusters south of the threshold
+  const gazaBeforeFilter = clusters.filter(c => c.origin === "Gaza").length;
+  clusters = clusters.filter(c => {
+    if (c.origin !== "Gaza") return true;
+    return c.centerLat >= GAZA_FILTER_LAT;
+  });
+  const gazaFiltered = gazaBeforeFilter - clusters.filter(c => c.origin === "Gaza").length;
+  dbg(`Gaza clusters before south-filter: ${gazaBeforeFilter}, removed: ${gazaFiltered}`);
+  dbg(`Gaza clusters: ${clusters.filter(c=>c.origin==="Gaza").length}`);
+  dbg(`Lebanon clusters: ${clusters.filter(c=>c.origin==="Lebanon").length}`);
+
+  // Console log each cluster point
+  console.group("Alarm Cluster Details");
+  for (const c of clusters) {
+    console.log({
+      id:          c.id,
+      origin:      c.origin,
+      threat:      c.threat,
+      centerLat:   +c.centerLat.toFixed(5),
+      centerLon:   +c.centerLon.toFixed(5),
+      closestCity: c.closestCity,
+      maxDist_km:  +c.maxD.toFixed(2),
+      n_locations: c.n,
+    });
+  }
+  console.groupEnd();
+
+  if (clusters.length === 0) {
+    flushDebug(); document.getElementById("debug").style.display = "block";
+    setStatus("⚠️ No Gaza/Lebanon clusters found. Check debug log.");
+    return;
+  }
+
+  const STYLES = {
+    Gaza:    { color: "rgba(220,60,60,0.6)",  line: "rgba(240,80,80,1)",  trendColor: "rgba(255,120,120,0.9)" },
+    Lebanon: { color: "rgba(50,200,70,0.6)",  line: "rgba(70,220,90,1)",  trendColor: "rgba(100,240,110,0.9)" },
+  };
+
+  const traces = [];
+
+  for (const origin of ["Gaza", "Lebanon"]) {
+    const pts = clusters.filter(c => c.origin === origin);
+
+    // Scatter trace
+    traces.push({
+      type: "scatter",
+      mode: "markers",
+      name: origin,
+      x: pts.map(c => c.medianLat),
+      y: pts.map(c => c.maxD),
+      text: pts.map(c =>
+        `ID: ${c.id} &nbsp;${c.time}<br>` +
+        `Closest city: ${c.closestCity}<br>` +
+        `Center: ${c.centerLat.toFixed(4)}°N, ${c.centerLon.toFixed(4)}°E<br>` +
+        `n locations: ${c.n}`
+      ),
+      hovertemplate:
+        `<b>${origin}</b><br>` +
+        `Median lat: %{x:.3f}°<br>` +
+        `Max dist: %{y:.1f} km<br>` +
+        `%{text}<extra></extra>`,
+      marker: {
+        size: 7,
+        color: STYLES[origin].color,
+        line: { color: STYLES[origin].line, width: 1 },
+      },
+      legendgroup: origin,
+    });
+
+    // Trend line trace
+    const xs = pts.map(c => c.medianLat);
+    const ys = pts.map(c => c.maxD);
+    const reg = linReg(xs, ys);
+    if (reg) {
+      const xMin = Math.min(...xs);
+      const xMax = Math.max(...xs);
+      const trendX = [xMin, xMax];
+      const trendY = trendX.map(x => reg.slope * x + reg.intercept);
+      traces.push({
+        type: "scatter",
+        mode: "lines",
+        name: `${origin} trend`,
+        x: trendX,
+        y: trendY,
+        line: { color: STYLES[origin].trendColor, width: 2, dash: "dash" },
+        hoverinfo: "skip",
+        legendgroup: origin,
+        showlegend: true,
+      });
+    }
+  }
+
+  Plotly.newPlot("plot", traces, {
+    paper_bgcolor: "#1a1a2e",
+    plot_bgcolor:  "#12122a",
+    font: { color: "#dde", family: "Arial, sans-serif" },
+    title: {
+      text: "Alarm Clusters: Max Spread vs. Median Latitude — Oct 7 2023 onwards, Threat 0",
+      font: { size: 15, color: "#ccddff" }, x: 0.5,
+    },
+    xaxis: {
+      title: { text: "Median Cluster Latitude (°N)", font: { size: 13 } },
+      gridcolor: "#2a2a4a", zerolinecolor: "#444466",
+    },
+    yaxis: {
+      title: { text: "Max Distance Between Locations in Cluster (km)", font: { size: 13 } },
+      gridcolor: "#2a2a4a", zerolinecolor: "#444466",
+    },
+    legend: {
+      bgcolor: "rgba(20,20,50,0.85)", bordercolor: "#334", borderwidth: 1,
+      font: { size: 13 },
+    },
+    margin: { t: 60, l: 70, r: 30, b: 70 },
+  }, { responsive: true });
+
+  setStatus(
+    `✅ ${clusters.filter(c=>c.origin==="Gaza").length} Gaza clusters` +
+    ` (${gazaFiltered} south-filtered), ` +
+    `${clusters.filter(c=>c.origin==="Lebanon").length} Lebanon clusters`
+  );
+}
+
+main().catch(e => {
+  setStatus("Error: " + e);
+  dbg("EXCEPTION: " + e + "\n" + (e.stack || ""));
+  flushDebug(); document.getElementById("debug").style.display = "block";
+});
+</script>
+</body>
+</html>
