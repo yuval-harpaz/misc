@@ -342,9 +342,10 @@
 
         .alarm-popup h4 {
             margin: 0 0 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.15);
             padding-bottom: 5px;
             font-size: 1.1em;
+            color: #111;
             position: sticky;
             top: 0;
             background: inherit;
@@ -356,7 +357,7 @@
             align-items: center;
             gap: 8px;
             padding: 4px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
             font-size: 0.9em;
         }
 
@@ -371,12 +372,12 @@
         }
 
         .alarm-time-text {
-            color: #ccc;
+            color: #333;
             white-space: nowrap;
         }
 
         .alarm-origin-text {
-            color: #88aaff;
+            color: #2255cc;
             font-size: 0.85em;
         }
 
@@ -482,9 +483,30 @@
         function parseDate(str) {
             if (!str) return null;
             const iso = str.replace(' ', 'T');
-            // Force Israel Winter Time (+02:00) if no timezone specified
+            // If the string already has timezone info, use it as-is
             if (iso.includes('+') || iso.includes('Z')) return new Date(iso);
-            return new Date(iso + "+02:00");
+            // Otherwise determine Israel's UTC offset at that date:
+            // Israel observes DST (UTC+3) from last Friday of March to last Sunday of October.
+            // We parse as UTC first just to get the date, then apply the correct offset.
+            const naive = new Date(iso + 'Z'); // treat as UTC to read year/month/day
+            const year = naive.getUTCFullYear();
+            // DST start: last Friday of March at 02:00 local (= 00:00 UTC+2)
+            const dstStart = lastWeekdayOfMonth(year, 2, 5, 2, 0); // month=2(Mar), weekday=5(Fri), 02:00 local winter
+            // DST end: last Sunday of October at 02:00 local (= 23:00 UTC+3 previous day)
+            const dstEnd   = lastWeekdayOfMonth(year, 9, 0, 2, 0); // month=9(Oct), weekday=0(Sun), 02:00 local summer
+            const isDST = naive >= dstStart && naive < dstEnd;
+            return new Date(iso + (isDST ? '+03:00' : '+02:00'));
+        }
+        // Returns a Date for the last occurrence of `weekday` in `month` of `year`,
+        // at `hour`:`minute` Israel Winter Time (UTC+2).
+        // weekday: 0=Sun … 6=Sat, month: 0=Jan … 11=Dec
+        function lastWeekdayOfMonth(year, month, weekday, hour, minute) {
+            // Last day of the month
+            const last = new Date(Date.UTC(year, month + 1, 0));
+            const diff = (last.getUTCDay() - weekday + 7) % 7;
+            last.setUTCDate(last.getUTCDate() - diff);
+            last.setUTCHours(hour - 2, minute, 0, 0); // convert local +02:00 to UTC
+            return last;
         }
         function formatTime(d) {
             const opts = {
@@ -557,6 +579,13 @@
                 });
             });
         }
+
+        // ── Circle size limits ──────────────────────────────────────────────────
+        // Counts outside this range are clamped before computing the circle radius,
+        // so circles never get smaller than MIN_ALARM_COUNT nor larger than MAX_ALARM_COUNT implies.
+        const MIN_ALARM_COUNT = 10;   // counts below this map to the smallest circle
+        const MAX_ALARM_COUNT = 100;  // counts above this map to the largest circle
+        // ───────────────────────────────────────────────────────────────────────
 
         async function initMap() {
             const [coord, alarms] = await Promise.all([fetchCSV('data/coord.csv'), fetchCSV('data/alarms.csv')]);
@@ -767,7 +796,7 @@
                     if (!coords) return;
                     const count = ts.length;
                     const marker = L.circleMarker(coords, {
-                        radius: Math.max(Math.sqrt(count) * 2.5, 4),
+                        radius: Math.sqrt(Math.min(Math.max(count, MIN_ALARM_COUNT), MAX_ALARM_COUNT)) * 2.5,
                         fillColor: countToColor(count, maxCount),
                         color: 'none', fillOpacity: 0.8
                     }).bindPopup(buildPopupContent(loc, ts, isEn), { maxWidth: 280 })
