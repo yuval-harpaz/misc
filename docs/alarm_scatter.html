@@ -8,6 +8,7 @@
 <style>
   * { box-sizing: border-box; }
   body { font-family: Arial, sans-serif; background: #1a1a2e; color: #eee; margin: 0; padding: 20px; }
+  #container { max-width: 1300px; margin: 0 auto; }
   h2 { text-align: center; color: #cce; margin-bottom: 4px; }
   #subtitle { text-align:center; color:#9aa; font-size:13px; margin-bottom:14px; }
   #status { text-align:center; color:#88aaff; min-height:22px; margin-bottom:6px; font-size:14px; }
@@ -19,12 +20,14 @@
 </style>
 </head>
 <body>
+<div id="container">
 <h2>Alarm Clusters — Max Distance vs. Median Latitude</h2>
-<div id="subtitle">Oct 7, 2023 onwards · Threat level 0 · Gaza (red) and Lebanon (green) only · Gaza clusters south of 31.3729°N excluded</div>
+<div id="subtitle">Oct 8, 2023 onwards · Threat level 0 · Gaza (red) and Lebanon (green) only · Gaza clusters south of 31.3729°N excluded</div>
 <div id="status">Loading data…</div>
 <div id="plot"></div>
 <a id="dbgToggle" onclick="toggleDebug()">show debug log</a>
 <div id="debug"></div>
+</div>
 
 <script>
 const ALARMS_URL = "https://raw.githubusercontent.com/yuval-harpaz/alarms/master/data/alarms.csv";
@@ -167,11 +170,11 @@ async function main() {
   }
   dbg(`coordMap: ${Object.keys(coordMap).length} entries`);
 
-  // filter: Oct 7 2023 onwards, threat == 0
+  // filter: Oct 8 2023 onwards, threat == 0
   // keep threat value for logging
   const filtered = alarms.filter(row => {
     const t = String(row["time"] || "");
-    return new Date(t) >= new Date("2023-10-07") && String(row["threat"] || "").trim() === "0";
+    return new Date(t) >= new Date("2023-10-08") && String(row["threat"] || "").trim() === "0";
   });
   dbg(`filtered: ${filtered.length} rows`);
 
@@ -278,6 +281,7 @@ async function main() {
   };
 
   const traces = [];
+  const annotations = [];
 
   for (const origin of ["Gaza", "Lebanon"]) {
     const pts = clusters.filter(c => c.origin === origin);
@@ -328,6 +332,26 @@ async function main() {
         legendgroup: origin,
         showlegend: true,
       });
+
+      // Annotation: place label at 70% along the trend line
+      const annX = xMin + 0.7 * (xMax - xMin);
+      const annY = reg.slope * annX + reg.intercept;
+      const slopeSign = reg.slope >= 0 ? "+" : "−";
+      const slopeAbs  = Math.abs(reg.slope).toFixed(1);
+      const interceptSign = reg.intercept >= 0 ? "+" : "−";
+      const interceptAbs  = Math.abs(reg.intercept).toFixed(1);
+      annotations.push({
+        x: annX,
+        y: annY,
+        xref: "x", yref: "y",
+        text: `<i>y = ${slopeSign}${slopeAbs}·x ${interceptSign} ${interceptAbs}</i>`,
+        showarrow: false,
+        font: { color: STYLES[origin].trendColor, size: 11 },
+        xanchor: "center",
+        yanchor: "bottom",
+        yshift: 6,
+        bgcolor: "rgba(18,18,42,0.65)",
+      });
     }
   }
 
@@ -336,7 +360,7 @@ async function main() {
     plot_bgcolor:  "#12122a",
     font: { color: "#dde", family: "Arial, sans-serif" },
     title: {
-      text: "Alarm Clusters: Max Spread vs. Median Latitude — Oct 7 2023 onwards, Threat 0",
+      text: "Alarm Clusters: Max Spread vs. Median Latitude — Oct 8 2023 onwards, Threat 0",
       font: { size: 15, color: "#ccddff" }, x: 0.5,
     },
     xaxis: {
@@ -351,6 +375,7 @@ async function main() {
       bgcolor: "rgba(20,20,50,0.85)", bordercolor: "#334", borderwidth: 1,
       font: { size: 13 },
     },
+    annotations,
     margin: { t: 60, l: 70, r: 30, b: 70 },
   }, { responsive: true });
 
