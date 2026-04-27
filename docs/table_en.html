@@ -139,12 +139,21 @@
         });
 
         function loadMainData() {
-            // Load CSV and initialize DataTable
-            Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/oct7database.csv", {
+            // Load geni data first, then main CSV
+            var geniMap = {};
+            Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/geni.csv", {
                 download: true,
                 header: true,
-                complete: function (results) {
-                    var data = results.data;
+                complete: function (geniResults) {
+                    geniResults.data.forEach(function (g) {
+                        if (g.pid && g.geni) geniMap[g.pid] = g.geni;
+                    });
+                    // Load CSV and initialize DataTable
+                    Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/oct7database.csv", {
+                        download: true,
+                        header: true,
+                        complete: function (results) {
+                            var data = results.data;
                     var hideCols = ['שם פרטי', 'שם משפחה', 'שם נוסף', 'כינוי', 'מקום האירוע', 'מקום המוות', 'Event location class', 'Death location class'];
                     var translations = {
                         'front': 'Front',
@@ -230,6 +239,12 @@
                             return { title: translations[col] || col, data: col };
                         });
 
+                    // Augment rows with geni URL from geniMap, and add geni column
+                    data.forEach(function (row) {
+                        row.geni = geniMap[row.pid] || '';
+                    });
+                    columns.push({ title: 'geni', data: 'geni' });
+
                     // Find the index of the pid column
                     var pidColumnIndex = columns.findIndex(function (col) { return col.data === 'pid'; });
 
@@ -278,6 +293,12 @@
                             // Make links for הספרייה הלאומית column
                             if (col.data === 'הספריה הלאומית' && cellData) {
                                 cellData = '<a href="https://www.nli.org.il/he/authorities/' + cellData + '" target="_blank">' + cellData + '</a>';
+                            }
+                            // Make geni link (display last URL segment as text)
+                            if (col.data === 'geni' && cellData) {
+                                var geniParts = cellData.split('/');
+                                var geniText = geniParts[geniParts.length - 2] || cellData;
+                                cellData = '<a href="' + cellData + '" target="_blank">' + geniText + '</a>';
                             }
                             tr += "<td>" + cellData + "</td>";
                         });
@@ -719,8 +740,10 @@
                             });
                         }
                     });
+                        }
+                    });  // end oct7database parse
                 }
-            });
+            });  // end geni parse
         }
     </script>
 </body>
