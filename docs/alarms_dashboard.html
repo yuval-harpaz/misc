@@ -394,7 +394,7 @@ const T = {
     yAxisEvents: 'מספר אירועים', yAxisAlarms: 'מספר התראות',
     loading: '⏳ טוען נתונים...',
     t0label: 'רקטות', t5label: 'כלי טיס',
-    origins: { Gaza:'עזה', Lebanon:'לבנון', Iran:'איראן', Yemen:'תימן', Syria:'סוריה', Iraq:'עיראק', FA:'FA', Israel:'ישראל', '':'לא ידוע' },
+    origins: { Gaza:'עזה', Lebanon:'לבנון', Iran:'איראן', Yemen:'תימן', Syria:'סוריה', Iraq:'עיראק', FA:'שווא', Israel:'ישראל', '':'לא ידוע' },
     months: ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'],
   },
   en: {
@@ -409,7 +409,7 @@ const T = {
     yAxisEvents: 'Number of Events', yAxisAlarms: 'Number of Alarms',
     loading: '⏳ Loading data...',
     t0label: 'Rockets', t5label: 'Aircraft',
-    origins: { Gaza:'Gaza', Lebanon:'Lebanon', Iran:'Iran', Yemen:'Yemen', Syria:'Syria', Iraq:'Iraq', FA:'FA', Israel:'Israel', '':'Unknown' },
+    origins: { Gaza:'Gaza', Lebanon:'Lebanon', Iran:'Iran', Yemen:'Yemen', Syria:'Syria', Iraq:'Iraq', FA:'שווא', Israel:'Israel', '':'Unknown' },
     months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
   }
 };
@@ -430,7 +430,8 @@ const SLIDER_STEPS = 1000;
 
 // ── HELPERS ───────────────────────────────────────────────────────
 function parseDate(s){ return new Date(s.replace(' ','T')); }
-function toISODate(d){ return d.toISOString().slice(0,10); }
+function parseLocalDate(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function toISODate(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); const dy=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${dy}`; }
 
 function dateFromSlider(v){
   const msMin = minDate.getTime(), msMax = maxDate.getTime();
@@ -658,7 +659,18 @@ function aggregateData(rows, agg, metric, from, to){
   const {keys, labels} = allBuckets(from, to, agg);
   const origins = Array.from(originSet).sort();
   const t=T[lang];
-  const traces = origins.map(origin=>{
+  // Dummy invisible trace ensures ALL labels appear on x-axis, even buckets with zero data
+  const dummyTrace = {
+    x: labels,
+    y: new Array(labels.length).fill(0),
+    type: 'bar',
+    showlegend: false,
+    hoverinfo: 'none',
+    marker: { color: 'rgba(0,0,0,0)' },
+    name: '__dummy__'
+  };
+
+  const traces = [dummyTrace, ...origins.map(origin=>{
     const y=keys.map(k=>{
       const cell=bucketMap[k]?.[origin];
       if(!cell) return 0;
@@ -670,7 +682,7 @@ function aggregateData(rows, agg, metric, from, to){
       type:'bar',
       marker:{color:ORIGIN_COLORS[origin]||'#888'}
     };
-  });
+  })];
   const totalAlarms=rows.length;
   const totalEvents=new Set(stamped.map(r=>r.eventId)).size;
   const totalDays=new Set(rows.map(r=>toISODate(new Date(r.ts)))).size;
@@ -680,8 +692,9 @@ function aggregateData(rows, agg, metric, from, to){
 // ── RENDER ───────────────────────────────────────────────────────
 function renderChart(){
   const t=T[lang];
-  const from=new Date(document.getElementById('fromInput').value);
-  const to=new Date(document.getElementById('toInput').value);
+  // Parse date strings as LOCAL time (new Date("YYYY-MM-DD") parses as UTC, causing off-by-one in UTC+ zones)
+  const from=parseLocalDate(document.getElementById('fromInput').value);
+  const to=parseLocalDate(document.getElementById('toInput').value);
   to.setHours(23,59,59,999);
   if(isNaN(from)||isNaN(to)) return;
 
@@ -834,7 +847,7 @@ function onDateInputChange(which){
   const fromSlider=document.getElementById('fromSlider');
   const toSlider=document.getElementById('toSlider');
   if(which==='from'){
-    const d=new Date(fromInput.value);
+    const d=parseLocalDate(fromInput.value);
     if(!isNaN(d)){
       let v=sliderFromDate(d);
       v=Math.max(0,Math.min(parseInt(toSlider.value)-1,v));
@@ -843,7 +856,7 @@ function onDateInputChange(which){
       debounceRender();
     }
   } else {
-    const d=new Date(toInput.value);
+    const d=parseLocalDate(toInput.value);
     if(!isNaN(d)){
       let v=sliderFromDate(d);
       v=Math.min(SLIDER_STEPS,Math.max(parseInt(fromSlider.value)+1,v));
@@ -876,8 +889,8 @@ async function loadData(){
     minDate=new Date(rows[0].ts);
     maxDate=new Date();
 
-    const defaultFrom=new Date('2026-03-01');
-    const defaultTo=new Date();
+    const defaultFrom=new Date(2026,2,1); // local time
+    const defaultTo=new Date(); // today local
 
     document.getElementById('fromInput').value=toISODate(defaultFrom);
     document.getElementById('toInput').value=toISODate(defaultTo);
