@@ -194,6 +194,26 @@
                 // Find the index of the pid column
                 var pidColumnIndex = columns.findIndex(function (col) { return col.data === 'pid'; });
 
+                // Parse URL query parameters for initial filtering
+                // Supports: table.html?pid=34  (show single person)
+                //           table.html?status=killed,died  (status includes killed OR died)
+                //           table.html?front=gaza&gender=m  (multiple columns combine with AND)
+                var urlParams = new URLSearchParams(window.location.search);
+                var urlPid = urlParams.get('pid');
+                var urlColumnFilters = {}; // colIdx -> array of translated values to match (OR within column)
+                urlParams.forEach(function (rawValue, rawKey) {
+                    if (rawKey.toLowerCase() === 'pid') return;
+                    var colIdx = columns.findIndex(function (c) {
+                        return c.data.toLowerCase() === rawKey.toLowerCase();
+                    });
+                    if (colIdx === -1) return;
+                    var values = rawValue.split(',').map(function (v) {
+                        v = v.trim();
+                        return translations[v] || v;
+                    }).filter(Boolean);
+                    if (values.length) urlColumnFilters[colIdx] = values;
+                });
+
                 // Build table header
                 var thead = $("#oct7table thead");
                 var headerRow = "<tr>";
@@ -309,25 +329,34 @@
                         !col.data.toLowerCase().includes('location class') &&
                         !col.data.toLowerCase().includes('date')
                     ) {
-                        var uniqueVals = [...new Set(data.map(row => {
-                            var val = row[col.data];
-                            // Translate Gender values
-                            if (col.data === 'Gender' && val && translations[val]) {
-                                return translations[val];
-                            }
-                            // Translate Front values
-                            if (col.data === 'front' && val && translations[val]) {
-                                return translations[val];
-                            }
-                            // Translate Status values (handle composite values)
-                            if (col.data === 'Status' && val) {
-                                return val.split(';').map(function (part) {
+                        var uniqueVals;
+                        if (col.data === 'Status') {
+                            // Build the list from individual status values (not composite combos),
+                            // so "kidnapped; killed" contributes both "kidnapped" and "killed" as separate options.
+                            var statusSet = new Set();
+                            data.forEach(function (row) {
+                                var val = row[col.data];
+                                if (!val) return;
+                                val.split(';').forEach(function (part) {
                                     var trimmed = part.trim();
-                                    return translations[trimmed] || trimmed;
-                                }).join('; ');
-                            }
-                            return val;
-                        }).filter(v => v))].sort();
+                                    if (trimmed) statusSet.add(translations[trimmed] || trimmed);
+                                });
+                            });
+                            uniqueVals = [...statusSet].sort();
+                        } else {
+                            uniqueVals = [...new Set(data.map(row => {
+                                var val = row[col.data];
+                                // Translate Gender values
+                                if (col.data === 'Gender' && val && translations[val]) {
+                                    return translations[val];
+                                }
+                                // Translate Front values
+                                if (col.data === 'front' && val && translations[val]) {
+                                    return translations[val];
+                                }
+                                return val;
+                            }).filter(v => v))].sort();
+                        }
                         // Check if values exist and their max length is reasonable
                         var maxLen = Math.max(...uniqueVals.map(v => v.length));
                         if (uniqueVals.length > 1 && uniqueVals.length < 50 && maxLen < 30) {
@@ -426,7 +455,7 @@
                 });
 
                 // Variable to store selected pid for filtering
-                var selectedPid = null;
+                var selectedPid = urlPid || null;
 
                 // Custom filter function for exact pid match
                 $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
@@ -607,6 +636,18 @@
                     columnFilters[idx] = null; // null means all values allowed
                 });
 
+                // Apply any column filters that came from the URL query string
+                Object.keys(urlColumnFilters).forEach(function (colIdxStr) {
+                    var colIdx = parseInt(colIdxStr);
+                    var values = urlColumnFilters[colIdx];
+                    columnFilters[colIdx] = values;
+                    // Reflect the filter in the checkbox UI: check only matching values
+                    $(`#filter${colIdx} .filter-checkbox`).each(function () {
+                        var val = decodeHtmlEntities($(this).val());
+                        $(this).prop('checked', values.indexOf(val) !== -1);
+                    });
+                });
+
                 // Custom search function for multi-select filters
                 $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
                     for (var colIdx in columnFilters) {
@@ -622,10 +663,16 @@
                                 cellValue = translations[cellValue];
                             }
                             if (colData === 'Status' && cellValue) {
-                                cellValue = cellValue.split(';').map(function (part) {
+                                // Status can hold multiple values (e.g. "kidnapped; killed").
+                                // Match if ANY of the cell's individual values is in the allowed list.
+                                var statusParts = cellValue.split(';').map(function (part) {
                                     var trimmed = part.trim();
                                     return translations[trimmed] || trimmed;
-                                }).join('; ');
+                                });
+                                if (!statusParts.some(function (p) { return allowedValues.includes(p); })) {
+                                    return false;
+                                }
+                                continue;
                             }
                             if (!allowedValues.includes(cellValue)) {
                                 return false;
@@ -693,6 +740,11 @@
                         });
                     }
                 });
+
+                // Apply any filters that came from the URL query string (e.g. ?pid=34 or ?status=killed,died)
+                if (selectedPid !== null || Object.keys(urlColumnFilters).length) {
+                    table.draw();
+                }
                     }
                 });  // end oct7database parse
             }
