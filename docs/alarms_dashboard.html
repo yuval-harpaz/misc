@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>התראות ביטחון</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #0d1117;
+  color: #e6edf3;
+  min-height: 100vh;
+  padding: 16px;
+  direction: rtl;
+}
+h1 {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: #58a6ff;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.ctrl-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ctrl-group label {
+  font-size: 0.75rem;
+  color: #8b949e;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── multi-select origin dropdown ── */
+.origin-dropdown-wrap {
+  position: relative;
+}
+.origin-btn {
+  background: #161b22;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 6px 28px 6px 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-width: 150px;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  position: relative;
+}
+.origin-btn::after {
+  content: '▾';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8b949e;
+  pointer-events: none;
+}
+.origin-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 6px 0;
+  z-index: 999;
+  min-width: 160px;
+  box-shadow: 0 8px 24px #0008;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.origin-panel.open { display: block; }
+.origin-panel label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #e6edf3;
+  white-space: nowrap;
+  direction: rtl;
+}
+.origin-panel label:hover { background: #21262d; }
+.origin-panel input[type=checkbox] {
+  accent-color: #58a6ff;
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+}
+.origin-divider {
+  border: none;
+  border-top: 1px solid #30363d;
+  margin: 4px 0;
+}
+
+select, input[type="text"] {
+  background: #161b22;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+select:focus, input[type="text"]:focus { border-color: #58a6ff; }
+select { cursor: pointer; }
+
+/* ── threat toggle buttons ── */
+.threat-btns {
+  display: flex;
+  gap: 6px;
+}
+.threat-btn {
+  background: #21262d;
+  color: #8b949e;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.threat-btn.active {
+  background: #1f3a5f;
+  color: #58a6ff;
+  border-color: #58a6ff;
+}
+
+.lang-btn {
+  background: #21262d;
+  color: #58a6ff;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+.lang-btn:hover { background: #30363d; border-color: #58a6ff; }
+
+.stats-bar {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.stat-pill {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 0.82rem;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.stat-pill .num { color: #58a6ff; font-weight: 700; font-size: 0.95rem; }
+
+#chart { width: 100%; height: 500px; }
+
+/* ── dual range slider ── */
+.slider-section {
+  margin-top: 10px;
+  padding: 0 8px;
+  direction: ltr;  /* always LTR so left=old, right=new */
+}
+.date-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.date-row input[type="text"] {
+  width: 96px;
+  text-align: center;
+  font-size: 0.82rem;
+  padding: 4px 6px;
+}
+.date-row-label {
+  font-size: 0.75rem;
+  color: #8b949e;
+  font-weight: 600;
+}
+.dual-slider-wrap {
+  position: relative;
+  height: 28px;
+  margin: 0 6px;
+}
+.dual-slider-wrap input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  left: 0; right: 0;
+  width: 100%;
+  height: 4px;
+  background: transparent;
+  outline: none;
+  pointer-events: none;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.dual-slider-wrap input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #58a6ff;
+  cursor: pointer;
+  pointer-events: all;
+  border: 2px solid #0d1117;
+  box-shadow: 0 0 4px #58a6ff88;
+}
+.dual-slider-wrap input[type=range]::-moz-range-thumb {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #58a6ff;
+  cursor: pointer;
+  pointer-events: all;
+  border: 2px solid #0d1117;
+}
+.slider-track-bg {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  left: 0; right: 0;
+  height: 4px;
+  background: #30363d;
+  border-radius: 2px;
+  pointer-events: none;
+}
+.slider-track-fill {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  height: 4px;
+  background: #58a6ff;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* tick labels */
+.slider-ticks {
+  position: relative;
+  height: 36px;
+  margin: 2px 6px 0;
+  direction: ltr;
+}
+.tick-label {
+  position: absolute;
+  font-size: 0.68rem;
+  color: #8b949e;
+  transform: translateX(-50%);
+  top: 4px;
+  white-space: nowrap;
+  user-select: none;
+}
+.tick-label.year-tick {
+  color: #c9d1d9;
+  font-weight: 700;
+  font-size: 0.75rem;
+  top: 0;
+}
+.tick-mark {
+  position: absolute;
+  width: 1px;
+  height: 6px;
+  background: #30363d;
+  top: -8px;
+}
+.tick-mark.year-mark {
+  background: #58a6ff55;
+  height: 10px;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px;
+  color: #8b949e;
+  font-size: 1.1rem;
+}
+.error { color: #f85149; }
+</style>
+</head>
+<body>
+
+<h1 id="mainTitle">📡 התראות ביטחוניות — ישראל</h1>
+
+<div class="controls">
+  <!-- Origin multi-select -->
+  <div class="ctrl-group">
+    <label id="lbl-origin">מקור</label>
+    <div class="origin-dropdown-wrap" id="originWrap">
+      <button class="origin-btn" id="originBtn" onclick="toggleOriginPanel(event)">הכל</button>
+      <div class="origin-panel" id="originPanel">
+        <label><input type="checkbox" id="chk-all" checked onchange="toggleAllOrigins(this)"> <span id="span-all">הכל</span></label>
+        <hr class="origin-divider">
+        <!-- dynamic checkboxes injected here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Threat type toggles -->
+  <div class="ctrl-group">
+    <label id="lbl-threat">סוג איום</label>
+    <div class="threat-btns">
+      <button class="threat-btn active" id="btn-t0" onclick="toggleThreat('0')">🚀 <span id="span-t0">רקטות</span></button>
+      <button class="threat-btn active" id="btn-t5" onclick="toggleThreat('5')">✈️ <span id="span-t5">כלי טיס</span></button>
+    </div>
+  </div>
+
+  <!-- Aggregation -->
+  <div class="ctrl-group">
+    <label id="lbl-agg">סיכום לפי</label>
+    <select id="aggSelect" onchange="renderChart()">
+      <option value="day" id="opt-day">יום</option>
+      <option value="week" id="opt-week">שבוע</option>
+      <option value="month" id="opt-month">חודש</option>
+    </select>
+  </div>
+
+  <!-- Metric -->
+  <div class="ctrl-group">
+    <label id="lbl-metric">הצגה</label>
+    <select id="metricSelect" onchange="renderChart()">
+      <option value="events" id="opt-events">אירועים</option>
+      <option value="alarms" id="opt-alarms">התראות</option>
+    </select>
+  </div>
+
+  <button class="lang-btn" id="langBtn" onclick="toggleLang()">🌐 English</button>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-pill"><span id="statEventsLabel">אירועים:</span> <span class="num" id="statEvents">—</span></div>
+  <div class="stat-pill"><span id="statAlarmsLabel">התראות:</span> <span class="num" id="statAlarms">—</span></div>
+  <div class="stat-pill"><span id="statDaysLabel">ימים:</span> <span class="num" id="statDays">—</span></div>
+</div>
+
+<div id="loadingMsg" class="loading">⏳ טוען נתונים...</div>
+<div id="chart" style="display:none;"></div>
+
+<!-- Dual range slider — always LTR -->
+<div class="slider-section" id="sliderSection" style="display:none;">
+  <div class="date-row">
+    <input type="text" id="fromInput" placeholder="YYYY-MM-DD" onchange="onDateInputChange('from')">
+    <span class="date-row-label" id="lbl-range">טווח תאריכים</span>
+    <input type="text" id="toInput" placeholder="YYYY-MM-DD" onchange="onDateInputChange('to')">
+  </div>
+  <div class="dual-slider-wrap" id="dualSliderWrap">
+    <div class="slider-track-bg"></div>
+    <div class="slider-track-fill" id="trackFill"></div>
+    <input type="range" id="fromSlider" min="0" max="1000" value="0">
+    <input type="range" id="toSlider"   min="0" max="1000" value="1000">
+  </div>
+  <div class="slider-ticks" id="sliderTicks"></div>
+</div>
+
+<script>
+// ── TRANSLATIONS ──────────────────────────────────────────────────
+const T = {
+  he: {
+    mainTitle: '📡 התראות ביטחוניות — ישראל',
+    lblOrigin: 'מקור', lblThreat: 'סוג איום', lblAgg: 'סיכום לפי', lblMetric: 'הצגה',
+    lblRange: 'טווח תאריכים',
+    optAll: 'הכל', optDay: 'יום', optWeek: 'שבוע', optMonth: 'חודש',
+    optEvents: 'אירועים', optAlarms: 'התראות',
+    langBtn: '🌐 English',
+    statEvents: 'אירועים:', statAlarms: 'התראות:', statDays: 'ימים:',
+    chartTitle: 'התראות לפי מקור',
+    yAxisEvents: 'מספר אירועים', yAxisAlarms: 'מספר התראות',
+    loading: '⏳ טוען נתונים...',
+    t0label: 'רקטות', t5label: 'כלי טיס',
+    origins: { Gaza:'עזה', Lebanon:'לבנון', Iran:'איראן', Yemen:'תימן', Syria:'סוריה', Iraq:'עיראק', FA:'שווא', Israel:'ישראל', '':'לא ידוע' },
+    months: ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'],
+  },
+  en: {
+    mainTitle: '📡 Israel Security Alerts',
+    lblOrigin: 'Origin', lblThreat: 'Threat type', lblAgg: 'Aggregate by', lblMetric: 'Show',
+    lblRange: 'Date range',
+    optAll: 'All', optDay: 'Day', optWeek: 'Week', optMonth: 'Month',
+    optEvents: 'Events', optAlarms: 'Alarms',
+    langBtn: '🌐 עברית',
+    statEvents: 'Events:', statAlarms: 'Alarms:', statDays: 'Days:',
+    chartTitle: 'Alerts by Origin',
+    yAxisEvents: 'Number of Events', yAxisAlarms: 'Number of Alarms',
+    loading: '⏳ Loading data...',
+    t0label: 'Rockets', t5label: 'Aircraft',
+    origins: { Gaza:'Gaza', Lebanon:'Lebanon', Iran:'Iran', Yemen:'Yemen', Syria:'Syria', Iraq:'Iraq', FA:'שווא', Israel:'Israel', '':'Unknown' },
+    months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+  }
+};
+
+let lang = 'he';
+let allRows = [];
+let minDate, maxDate;
+let selectedThreats = new Set(['0','5']);
+let selectedOrigins = new Set(['__all__']);  // '__all__' means all
+let availableOrigins = [];  // origins in current time window
+
+const ORIGIN_COLORS = {
+  Gaza:'#e05c5c', Lebanon:'#58a6ff', Iran:'#ff9f43',
+  Yemen:'#a29bfe', Syria:'#55efc4', Iraq:'#fd79a8',
+  FA:'#fdcb6e', Israel:'#74b9ff', '':'#b2bec3'
+};
+const SLIDER_STEPS = 1000;
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function parseDate(s){ return new Date(s.replace(' ','T')); }
+function parseLocalDate(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function toISODate(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); const dy=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${dy}`; }
+
+function dateFromSlider(v){
+  const msMin = minDate.getTime(), msMax = maxDate.getTime();
+  return new Date(msMin + (v/SLIDER_STEPS)*(msMax-msMin));
+}
+function sliderFromDate(d){
+  const msMin = minDate.getTime(), msMax = maxDate.getTime();
+  return Math.round(((d.getTime()-msMin)/(msMax-msMin))*SLIDER_STEPS);
+}
+
+// ── LANG ──────────────────────────────────────────────────────────
+function toggleLang(){
+  lang = lang==='he'?'en':'he';
+  applyLang();
+  rebuildOriginPanel();
+  if(allRows.length) renderChart();
+}
+
+function applyLang(){
+  const t = T[lang];
+  // body dir: always ltr for layout but text elements get their own dir
+  document.body.style.direction = 'rtl'; // keep UI rtl
+  document.getElementById('mainTitle').textContent = t.mainTitle;
+  document.getElementById('lbl-origin').textContent = t.lblOrigin;
+  document.getElementById('lbl-threat').textContent = t.lblThreat;
+  document.getElementById('lbl-agg').textContent = t.lblAgg;
+  document.getElementById('lbl-metric').textContent = t.lblMetric;
+  document.getElementById('lbl-range').textContent = t.lblRange;
+  document.getElementById('opt-day').textContent = t.optDay;
+  document.getElementById('opt-week').textContent = t.optWeek;
+  document.getElementById('opt-month').textContent = t.optMonth;
+  document.getElementById('opt-events').textContent = t.optEvents;
+  document.getElementById('opt-alarms').textContent = t.optAlarms;
+  document.getElementById('langBtn').textContent = t.langBtn;
+  document.getElementById('statEventsLabel').textContent = t.statEvents;
+  document.getElementById('statAlarmsLabel').textContent = t.statAlarms;
+  document.getElementById('statDaysLabel').textContent = t.statDays;
+  document.getElementById('span-all').textContent = t.optAll;
+  document.getElementById('span-t0').textContent = t.t0label;
+  document.getElementById('span-t5').textContent = t.t5label;
+  document.getElementById('loadingMsg').textContent = t.loading;
+}
+
+// ── THREAT TOGGLE ─────────────────────────────────────────────────
+function toggleThreat(id){
+  if(selectedThreats.has(id)){
+    if(selectedThreats.size===1) return; // keep at least one
+    selectedThreats.delete(id);
+  } else {
+    selectedThreats.add(id);
+  }
+  document.getElementById('btn-t'+id).classList.toggle('active', selectedThreats.has(id));
+  renderChart();
+}
+
+// ── ORIGIN PANEL ──────────────────────────────────────────────────
+function toggleOriginPanel(e){
+  e.stopPropagation();
+  document.getElementById('originPanel').classList.toggle('open');
+}
+document.addEventListener('click', ()=>{
+  document.getElementById('originPanel').classList.remove('open');
+});
+
+function toggleAllOrigins(chk){
+  if(chk.checked){
+    selectedOrigins = new Set(['__all__']);
+    document.querySelectorAll('.origin-chk').forEach(c=>c.checked=false);
+  }
+  updateOriginBtn();
+  renderChart();
+}
+
+function toggleOneOrigin(origin, chk){
+  if(chk.checked){
+    selectedOrigins.delete('__all__');
+    selectedOrigins.add(origin);
+    document.getElementById('chk-all').checked = false;
+  } else {
+    selectedOrigins.delete(origin);
+    if(selectedOrigins.size===0){
+      selectedOrigins.add('__all__');
+      document.getElementById('chk-all').checked = true;
+    }
+  }
+  updateOriginBtn();
+  renderChart();
+}
+
+function updateOriginBtn(){
+  const t = T[lang];
+  const btn = document.getElementById('originBtn');
+  if(selectedOrigins.has('__all__')){
+    btn.textContent = t.optAll;
+  } else {
+    const labels = Array.from(selectedOrigins).map(o=>t.origins[o]||o);
+    btn.textContent = labels.join(', ');
+  }
+}
+
+function rebuildOriginPanel(filteredRows){
+  const t = T[lang];
+  const src = filteredRows || allRows;
+  const origins = Array.from(new Set(src.map(r=>r.origin))).sort();
+  availableOrigins = origins;
+
+  const panel = document.getElementById('originPanel');
+  // remove old origin checkboxes (keep first label + divider)
+  Array.from(panel.querySelectorAll('.origin-item')).forEach(el=>el.remove());
+
+  for(const o of origins){
+    const lbl = document.createElement('label');
+    lbl.className = 'origin-item';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.className = 'origin-chk';
+    chk.value = o;
+    chk.checked = selectedOrigins.has(o);
+    chk.onchange = ()=>toggleOneOrigin(o, chk);
+    lbl.appendChild(chk);
+    const sp = document.createElement('span');
+    sp.textContent = t.origins[o]||o;
+    lbl.appendChild(sp);
+    panel.appendChild(lbl);
+  }
+  document.getElementById('span-all').textContent = t.optAll;
+  document.getElementById('chk-all').checked = selectedOrigins.has('__all__');
+  updateOriginBtn();
+}
+
+// ── EVENT DETECTION ───────────────────────────────────────────────
+function computeEvents(rows){
+  const byOrigin = {};
+  for(const r of rows){
+    if(!byOrigin[r.origin]) byOrigin[r.origin]=[];
+    byOrigin[r.origin].push(r);
+  }
+  const out=[];
+  for(const [origin, orRows] of Object.entries(byOrigin)){
+    orRows.sort((a,b)=>a.ts-b.ts);
+    let evId=0, lastTs=null;
+    for(const r of orRows){
+      if(lastTs===null||(r.ts-lastTs)>2*60*1000) evId++;
+      lastTs=r.ts;
+      out.push({...r, eventId:`${origin}-${evId}`});
+    }
+  }
+  return out;
+}
+
+// ── BUCKET ────────────────────────────────────────────────────────
+// Returns a string key that matches allBuckets keys.
+function getBucket(d, agg){
+  if(agg==='day') return toISODate(d);
+  if(agg==='month') return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  if(agg==='week'){
+    // Return ISO date of the Sunday that starts this week (key, not display label)
+    const sun=new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    sun.setDate(sun.getDate()-sun.getDay());
+    return toISODate(sun);
+  }
+}
+
+// Format a week-start date as "DD-DD/MM/YYYY" (Sun–Sat)
+function weekLabel(sunDate){
+  const sat = new Date(sunDate);
+  sat.setDate(sat.getDate()+6);
+  const d1 = String(sunDate.getDate()).padStart(2,'0');
+  const d2 = String(sat.getDate()).padStart(2,'0');
+  const mo  = String(sat.getMonth()+1).padStart(2,'0');
+  const yr  = sat.getFullYear();
+  return `${d1}-${d2}/${mo}/${yr}`;
+}
+
+// Map ISO date string "YYYY-MM-DD" -> weekLabel (used in getBucket for weekly)
+// We store weekLabel as the bucket key for weekly aggregation.
+
+// Generate all bucket labels between from..to so x-axis is never cropped.
+// Returns { keys: [...], labels: [...] } — for day/month keys==labels; for week keys are Sun ISO dates, labels are formatted.
+function allBuckets(from, to, agg){
+  const keys=[], labels=[];
+  // Use date-only copies to avoid time-of-day cutting off the last bucket
+  const toDay = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59);
+
+  if(agg==='day'){
+    const cur = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+    while(cur<=toDay){
+      const k=toISODate(cur);
+      keys.push(k); labels.push(k);
+      cur.setDate(cur.getDate()+1);
+    }
+  } else if(agg==='week'){
+    const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+    start.setDate(start.getDate() - start.getDay()); // back to Sunday
+    const cur = new Date(start);
+    while(cur<=toDay){
+      keys.push(toISODate(cur));
+      labels.push(weekLabel(cur));
+      cur.setDate(cur.getDate()+7);
+    }
+  } else if(agg==='month'){
+    const cur = new Date(from.getFullYear(), from.getMonth(), 1);
+    while(cur<=toDay){
+      const k=`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`;
+      keys.push(k); labels.push(k);
+      cur.setMonth(cur.getMonth()+1);
+    }
+  }
+  return {keys, labels};
+}
+
+// ── AGGREGATE ────────────────────────────────────────────────────
+function aggregateData(rows, agg, metric, from, to){
+  const stamped = computeEvents(rows);
+  const originSet=new Set();
+  const bucketMap={};
+  for(const r of stamped){
+    const key=getBucket(new Date(r.ts),agg);
+    originSet.add(r.origin);
+    if(!bucketMap[key]) bucketMap[key]={};
+    if(!bucketMap[key][r.origin]) bucketMap[key][r.origin]={events:new Set(),alarms:0};
+    bucketMap[key][r.origin].events.add(r.eventId);
+    bucketMap[key][r.origin].alarms++;
+  }
+  const {keys, labels} = allBuckets(from, to, agg);
+  const origins = Array.from(originSet).sort();
+  const t=T[lang];
+  // Dummy invisible trace ensures ALL labels appear on x-axis, even buckets with zero data
+  const dummyTrace = {
+    x: labels,
+    y: new Array(labels.length).fill(0),
+    type: 'bar',
+    showlegend: false,
+    hoverinfo: 'none',
+    marker: { color: 'rgba(0,0,0,0)' },
+    name: '__dummy__'
+  };
+
+  const traces = [dummyTrace, ...origins.map(origin=>{
+    const y=keys.map(k=>{
+      const cell=bucketMap[k]?.[origin];
+      if(!cell) return 0;
+      return metric==='events'?cell.events.size:cell.alarms;
+    });
+    return {
+      x: labels, y,
+      name: t.origins[origin]||origin,
+      type:'bar',
+      marker:{color:ORIGIN_COLORS[origin]||'#888'}
+    };
+  })];
+  const totalAlarms=rows.length;
+  const totalEvents=new Set(stamped.map(r=>r.eventId)).size;
+  const totalDays=new Set(rows.map(r=>toISODate(new Date(r.ts)))).size;
+  return {traces, labels, totalAlarms, totalEvents, totalDays};
+}
+
+// ── RENDER ───────────────────────────────────────────────────────
+function renderChart(){
+  const t=T[lang];
+  // Parse date strings as LOCAL time (new Date("YYYY-MM-DD") parses as UTC, causing off-by-one in UTC+ zones)
+  const from=parseLocalDate(document.getElementById('fromInput').value);
+  const to=parseLocalDate(document.getElementById('toInput').value);
+  to.setHours(23,59,59,999);
+  if(isNaN(from)||isNaN(to)) return;
+
+  const agg=document.getElementById('aggSelect').value;
+  const metric=document.getElementById('metricSelect').value;
+
+  // filter by time + threat
+  let filtered=allRows.filter(r=>
+    r.ts>=from.getTime() && r.ts<=to.getTime() &&
+    selectedThreats.has(r.threat)
+  );
+
+  // filter by origin
+  if(!selectedOrigins.has('__all__')){
+    filtered=filtered.filter(r=>selectedOrigins.has(r.origin));
+  }
+
+  // rebuild origin panel with origins active in time window (before origin filter)
+  const timeFiltered=allRows.filter(r=>
+    r.ts>=from.getTime() && r.ts<=to.getTime() &&
+    selectedThreats.has(r.threat)
+  );
+  rebuildOriginPanel(timeFiltered);
+
+  const {traces, labels, totalAlarms, totalEvents, totalDays}=aggregateData(filtered,agg,metric,from,to);
+
+  document.getElementById('statEvents').textContent=totalEvents.toLocaleString();
+  document.getElementById('statAlarms').textContent=totalAlarms.toLocaleString();
+  document.getElementById('statDays').textContent=totalDays.toLocaleString();
+
+  const yLabel=metric==='events'?t.yAxisEvents:t.yAxisAlarms;
+
+  // For category axes, range is by index. Pin to first and last label.
+  const xRange = labels.length > 0 ? [-0.5, labels.length - 0.5] : undefined;
+
+  const layout={
+    paper_bgcolor:'#0d1117',
+    plot_bgcolor:'#0d1117',
+    font:{color:'#e6edf3',family:'Segoe UI,Arial,sans-serif'},
+    title:{text:t.chartTitle,font:{size:16,color:'#58a6ff'}},
+    barmode:'stack',
+    xaxis:{
+      tickfont:{color:'#8b949e',size:10},
+      gridcolor:'#21262d',
+      linecolor:'#30363d',
+      showgrid:false,
+      type:'category',
+      range: xRange,
+      tickangle:-45,
+    },
+    yaxis:{
+      title:{text:yLabel,font:{size:12}},
+      gridcolor:'#21262d',
+      linecolor:'#30363d',
+    },
+    legend:{bgcolor:'#161b22',bordercolor:'#30363d',borderwidth:1,font:{color:'#e6edf3'}},
+    margin:{t:50,l:55,r:20,b:80}
+  };
+
+  Plotly.react('chart',traces,layout,{responsive:true,displayModeBar:true,displaylogo:false});
+}
+
+// ── DUAL SLIDER ───────────────────────────────────────────────────
+let sliderDebounce=null;
+
+function updateTrackFill(){
+  const fv=parseInt(document.getElementById('fromSlider').value);
+  const tv=parseInt(document.getElementById('toSlider').value);
+  const pctL=(fv/SLIDER_STEPS)*100;
+  const pctR=(tv/SLIDER_STEPS)*100;
+  const fill=document.getElementById('trackFill');
+  fill.style.left=pctL+'%';
+  fill.style.width=(pctR-pctL)+'%';
+}
+
+function buildTickLabels(){
+  const wrap=document.getElementById('sliderTicks');
+  wrap.innerHTML='';
+  const msMin=minDate.getTime(), msMax=maxDate.getTime();
+  const totalMs=msMax-msMin;
+
+  // Decide tick density
+  const totalMonths=(maxDate.getFullYear()-minDate.getFullYear())*12
+    +(maxDate.getMonth()-minDate.getMonth());
+
+  const t=T[lang];
+  // Place year ticks + month ticks
+  const startYear=minDate.getFullYear();
+  const endYear=maxDate.getFullYear();
+
+  for(let yr=startYear; yr<=endYear+1; yr++){
+    for(let mo=0; mo<12; mo++){
+      const d=new Date(yr,mo,1);
+      if(d<minDate||d>maxDate) continue;
+      const pct=((d.getTime()-msMin)/totalMs)*100;
+      if(pct<0||pct>100) continue;
+
+      const isJan=mo===0;
+      const mark=document.createElement('div');
+      mark.className='tick-mark'+(isJan?' year-mark':'');
+      mark.style.left=pct+'%';
+      wrap.appendChild(mark);
+
+      // Show label: always show year at Jan, show month abbr if space permits
+      if(isJan){
+        const lbl=document.createElement('div');
+        lbl.className='tick-label year-tick';
+        lbl.style.left=pct+'%';
+        lbl.textContent=String(yr);
+        wrap.appendChild(lbl);
+      } else if(totalMonths<=36){
+        const lbl=document.createElement('div');
+        lbl.className='tick-label';
+        lbl.style.left=pct+'%';
+        lbl.textContent=t.months[mo];
+        wrap.appendChild(lbl);
+      }
+    }
+  }
+}
+
+function syncSliders(){
+  const fromSlider=document.getElementById('fromSlider');
+  const toSlider=document.getElementById('toSlider');
+  const fromInput=document.getElementById('fromInput');
+  const toInput=document.getElementById('toInput');
+
+  fromSlider.addEventListener('input',()=>{
+    let v=parseInt(fromSlider.value);
+    const tv=parseInt(toSlider.value);
+    if(v>=tv){v=tv-1;fromSlider.value=v;}
+    fromInput.value=toISODate(dateFromSlider(v));
+    updateTrackFill();
+    debounceRender();
+  });
+
+  toSlider.addEventListener('input',()=>{
+    let v=parseInt(toSlider.value);
+    const fv=parseInt(fromSlider.value);
+    if(v<=fv){v=fv+1;toSlider.value=v;}
+    toInput.value=toISODate(dateFromSlider(v));
+    updateTrackFill();
+    debounceRender();
+  });
+}
+
+function onDateInputChange(which){
+  const fromInput=document.getElementById('fromInput');
+  const toInput=document.getElementById('toInput');
+  const fromSlider=document.getElementById('fromSlider');
+  const toSlider=document.getElementById('toSlider');
+  if(which==='from'){
+    const d=parseLocalDate(fromInput.value);
+    if(!isNaN(d)){
+      let v=sliderFromDate(d);
+      v=Math.max(0,Math.min(parseInt(toSlider.value)-1,v));
+      fromSlider.value=v;
+      updateTrackFill();
+      debounceRender();
+    }
+  } else {
+    const d=parseLocalDate(toInput.value);
+    if(!isNaN(d)){
+      let v=sliderFromDate(d);
+      v=Math.min(SLIDER_STEPS,Math.max(parseInt(fromSlider.value)+1,v));
+      toSlider.value=v;
+      updateTrackFill();
+      debounceRender();
+    }
+  }
+}
+
+function debounceRender(){
+  clearTimeout(sliderDebounce);
+  sliderDebounce=setTimeout(renderChart,180);
+}
+
+// ── LOAD ─────────────────────────────────────────────────────────
+async function loadData(){
+  const CSV_URL='https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/alarms.csv';
+  try {
+    const resp=await fetch(CSV_URL);
+    const text=await resp.text();
+    const parsed=Papa.parse(text,{header:true,skipEmptyLines:true});
+    const rows=parsed.data
+      .filter(r=>r.threat==='0'||r.threat==='5')
+      .map(r=>({...r,ts:parseDate(r.time).getTime()}))
+      .filter(r=>!isNaN(r.ts));
+    rows.sort((a,b)=>a.ts-b.ts);
+    allRows=rows;
+
+    minDate=new Date(rows[0].ts);
+    maxDate=new Date();
+
+    const defaultFrom=new Date(2026,2,1); // local time
+    const defaultTo=new Date(); // today local
+
+    document.getElementById('fromInput').value=toISODate(defaultFrom);
+    document.getElementById('toInput').value=toISODate(defaultTo);
+    document.getElementById('fromSlider').value=sliderFromDate(defaultFrom);
+    document.getElementById('toSlider').value=SLIDER_STEPS;
+    updateTrackFill();
+    buildTickLabels();
+
+    const initFiltered=rows.filter(r=>r.ts>=defaultFrom.getTime());
+    rebuildOriginPanel(initFiltered);
+
+    document.getElementById('loadingMsg').style.display='none';
+    document.getElementById('chart').style.display='block';
+    document.getElementById('sliderSection').style.display='block';
+
+    syncSliders();
+    renderChart();
+
+  } catch(err){
+    document.getElementById('loadingMsg').innerHTML=`<span class="error">❌ שגיאה: ${err.message}</span>`;
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────────────
+applyLang();
+loadData();
+</script>
+</body>
+</html>
