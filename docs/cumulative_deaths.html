@@ -146,13 +146,13 @@
 <header>
   <h1 id="titleEl">טוען נתונים…</h1>
   <div class="totals-row" id="totalsRow"></div>
-  <div class="subtitle">התפלגות מצטברת של הרוגים לפי תאריך מוות, מ-7 באוקטובר 2023 ועד היום &middot; הנתונים נטענים ומעודכנים ישירות מהמאגר בכל טעינה</div>
+  <div class="subtitle">התפלגות מצטברת של הרוגים לפי תאריך מוות, מ-7 באוקטובר 2023 ועד היום</div>
   <a class="source-link" href="https://oct7database.com" target="_blank" rel="noopener">
     <img src="https://oct7database.com/logo.png" alt="oct7database logo">
     <span>המקור: oct7database.com</span>
   </a>
   <div class="legend-note">
-    <div class="row"><span class="sq" style="background:#e0a02c"></span><span><b>חללי פעולות איבה</b> — מוות מאירוע לבבי, תאונת דרכים או סיבה עקיפה אחרת.</span></div>
+    <div class="row"><span class="sq" style="background:#e0a02c"></span><span><b>נפגעים נוספים</b> — מוות מאירוע לבבי, תאונת דרכים או סיבה עקיפה אחרת.</span></div>
     <div class="row"><span class="sq" style="background:#c0392b"></span><span><b>נרצחים</b> — אזרחים או חיילים שנרצחו כאזרחים.</span></div>
     <div class="row"><span class="sq" style="background:#6b8e23"></span><span><b>נופלים</b> — חיילים ואזרחים שנפלו בתפקיד.</span></div>
   </div>
@@ -172,16 +172,16 @@ const CSV_URLS = [
   "https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/oct7database_additional.csv"
 ];
 
-const GROUPS = ["נופלים", "נרצחים", "חללי פעולות איבה"];
+const GROUPS = ["נופלים", "נרצחים", "נפגעים נוספים"];
 const COLORS = {
   "נופלים": "#6b8e23",
   "נרצחים": "#c0392b",
-  "חללי פעולות איבה": "#e0a02c"
+  "נפגעים נוספים": "#e0a02c"
 };
 const SQUARES = {
   "נופלים": "🟩",
   "נרצחים": "🟥",
-  "חללי פעולות איבה": "🟧"
+  "נפגעים נוספים": "🟧"
 };
 
 function fetchCsv(url) {
@@ -222,7 +222,7 @@ function groupOf(row) {
   if (status.includes("killed")) {
     return (role === "אזרח" || role === "צוות רפואי") ? "נרצחים" : "נופלים";
   } else if (status.includes("died")) {
-    return "חללי פעולות איבה";
+    return "נפגעים נוספים";
   }
   return null;
 }
@@ -296,7 +296,7 @@ async function main() {
 
     document.getElementById("titleEl").textContent = `${grandTotal} הרוגים מהשבעה באוקטובר, יום ${dayN}`;
     const totalsRow = document.getElementById("totalsRow");
-    const order = ["חללי פעולות איבה", "נרצחים", "נופלים"];
+    const order = ["נפגעים נוספים", "נרצחים", "נופלים"];
     totalsRow.innerHTML = order.map(g =>
       `<span class="item"><span class="sq" style="background:${COLORS[g]}"></span>${g}: ${finalTotals[g]}</span>`
     ).join("");
@@ -310,7 +310,7 @@ async function main() {
       hoverinfo: "skip"
     }));
 
-    const hoverOrder = ["חללי פעולות איבה", "נרצחים", "נופלים"];
+    const hoverOrder = ["נפגעים נוספים", "נרצחים", "נופלים"];
     const hoverText = dates.map((d, i) => {
       let lines = [`<b>${fmtDateHe(d)}</b>`];
       hoverOrder.forEach(g => lines.push(`${SQUARES[g]} ${g}: ${cum[g][i]}`));
