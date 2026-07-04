@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>הרוגים מהשבעה באוקטובר</title>
+<link rel="icon" type="image/png" href="https://oct7database.com/logo.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2e38;
+    --text: #eef0f3;
+    --muted: #9aa2b1;
+    --nofelim: #6b8e23;
+    --nirtzachim: #c0392b;
+    --piguim: #e0a02c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Arial Hebrew", Arial, sans-serif;
+    direction: rtl;
+  }
+  header {
+    padding: 24px 32px 8px 32px;
+    text-align: center;
+  }
+  h1 {
+    font-size: clamp(20px, 3.2vw, 32px);
+    margin: 0 0 4px 0;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    min-height: 1.3em;
+  }
+  .totals-row {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    min-height: 1.2em;
+  }
+  .totals-row .item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .totals-row .sq {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .source-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    text-decoration: none;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .source-link:hover {
+    border-color: #6b8e23;
+    transform: translateY(-1px);
+  }
+  .source-link img {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    object-fit: cover;
+  }
+  .legend-note {
+    max-width: 900px;
+    margin: 14px auto 0 auto;
+    padding: 12px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.9;
+    text-align: right;
+  }
+  .legend-note .row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .legend-note .sq {
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+    margin-top: 4px;
+    flex: none;
+  }
+  .legend-note b { color: var(--text); }
+  #chart {
+    width: min(1400px, 96vw);
+    height: 620px;
+    margin: 18px auto 10px auto;
+  }
+  #status {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 40px 20px;
+  }
+  #errorBox {
+    max-width: 700px;
+    margin: 20px auto;
+    padding: 14px 18px;
+    background: #2a1418;
+    border: 1px solid #6b2b2b;
+    border-radius: 10px;
+    color: #f3c9c9;
+    font-size: 13px;
+    display: none;
+    text-align: center;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 10px 20px 30px 20px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titleEl">טוען נתונים…</h1>
+  <div class="totals-row" id="totalsRow"></div>
+  <div class="subtitle">התפלגות מצטברת של הרוגים לפי תאריך מוות, מ-7 באוקטובר 2023 ועד היום</div>
+  <a class="source-link" href="https://oct7database.com" target="_blank" rel="noopener">
+    <img src="https://oct7database.com/logo.png" alt="oct7database logo">
+    <span>המקור: oct7database.com</span>
+  </a>
+  <div class="legend-note">
+    <div class="row"><span class="sq" style="background:#e0a02c"></span><span><b>נפגעים נוספים</b> — מוות מאירוע לבבי, תאונת דרכים או סיבה עקיפה אחרת.</span></div>
+    <div class="row"><span class="sq" style="background:#c0392b"></span><span><b>נרצחים</b> — אזרחים או חיילים שנרצחו כאזרחים.</span></div>
+    <div class="row"><span class="sq" style="background:#6b8e23"></span><span><b>נופלים</b> — חיילים ואזרחים שנפלו בתפקיד.</span></div>
+  </div>
+</header>
+
+<div id="status">טוען נתונים מ-oct7database…</div>
+<div id="errorBox"></div>
+<div id="chart" style="display:none;"></div>
+
+<footer>
+  נבנה מנתוני oct7database.com &middot; תאריכי המוות מוצגים לפי שעון ישראל &middot; הנתונים נטענים בזמן אמת בכל פתיחה של הדף
+</footer>
+
+<script>
+const CSV_URLS = [
+  "https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/oct7database.csv",
+  "https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/oct7database_additional.csv"
+];
+
+const GROUPS = ["נופלים", "נרצחים", "נפגעים נוספים"];
+const COLORS = {
+  "נופלים": "#6b8e23",
+  "נרצחים": "#c0392b",
+  "נפגעים נוספים": "#e0a02c"
+};
+const SQUARES = {
+  "נופלים": "🟩",
+  "נרצחים": "🟥",
+  "נפגעים נוספים": "🟧"
+};
+
+function fetchCsv(url) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => resolve(results.data),
+      error: (err) => reject(err)
+    });
+  });
+}
+
+function hasKD(status) {
+  if (!status) return false;
+  return status.includes("killed") || status.includes("died");
+}
+
+function parseDeathDate(row) {
+  let dd = row["Death date"];
+  if (!dd || String(dd).trim() === "") {
+    const ed = row["Event date"];
+    if (!ed || String(ed).trim() === "") return null;
+    dd = ed;
+  }
+  let s = String(dd).trim();
+  if (s.length === 4) s = s + "-12-31";
+  else if (s.length === 7) s = s + "-15";
+  const d = new Date(s + "T00:00:00Z");
+  if (isNaN(d.getTime())) return null;
+  return d;
+}
+
+function groupOf(row) {
+  const status = row["Status"] || "";
+  const role = row["Role"];
+  if (status.includes("killed")) {
+    return (role === "אזרח" || role === "צוות רפואי") ? "נרצחים" : "נופלים";
+  } else if (status.includes("died")) {
+    return "נפגעים נוספים";
+  }
+  return null;
+}
+
+function isoDay(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function israelTodayISO() {
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit" });
+  return fmt.format(new Date());
+}
+
+function fmtDateHe(iso) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("he-IL", { year: "numeric", month: "long", day: "numeric" });
+}
+
+async function main() {
+  try {
+    const [rows1, rows2] = await Promise.all(CSV_URLS.map(fetchCsv));
+    const rows = rows1.concat(rows2);
+
+    const filtered = rows.filter(r => hasKD(r["Status"] || ""));
+    const withDate = filtered.map(r => {
+      const pd = parseDeathDate(r);
+      const g = groupOf(r);
+      return { date: pd, group: g };
+    }).filter(r => r.date && r.group);
+
+    const start = new Date("2023-10-07T00:00:00Z");
+    const todayISO = israelTodayISO();
+    const today = new Date(todayISO + "T00:00:00Z");
+    const dayN = Math.round((today - start) / 86400000) + 1;
+
+    const dates = [];
+    for (let t = new Date(start); t <= today; t.setUTCDate(t.getUTCDate() + 1)) {
+      dates.push(isoDay(t));
+    }
+    const dateIndex = new Map(dates.map((d, i) => [d, i]));
+
+    const daily = {};
+    GROUPS.forEach(g => daily[g] = new Array(dates.length).fill(0));
+
+    withDate.forEach(r => {
+      const iso = isoDay(r.date);
+      const idx = dateIndex.get(iso);
+      if (idx !== undefined) {
+        daily[r.group][idx] += 1;
+      }
+    });
+
+    const cum = {};
+    GROUPS.forEach(g => {
+      let running = 0;
+      cum[g] = daily[g].map(v => (running += v));
+    });
+
+    const totalDaily = dates.map((_, i) => GROUPS.reduce((s, g) => s + daily[g][i], 0));
+    const roll30 = totalDaily.map((_, i, arr) => {
+      const from = Math.max(0, i - 29);
+      let s = 0;
+      for (let j = from; j <= i; j++) s += arr[j];
+      return s;
+    });
+
+    const totalsAtDate = dates.map((_, i) => GROUPS.reduce((s, g) => s + cum[g][i], 0));
+    const finalTotals = {};
+    GROUPS.forEach(g => finalTotals[g] = cum[g][cum[g].length - 1]);
+    const grandTotal = GROUPS.reduce((s, g) => s + finalTotals[g], 0);
+
+    document.getElementById("titleEl").textContent = `${grandTotal} הרוגים מהשבעה באוקטובר, יום ${dayN}`;
+    const totalsRow = document.getElementById("totalsRow");
+    const order = ["נפגעים נוספים", "נרצחים", "נופלים"];
+    totalsRow.innerHTML = order.map(g =>
+      `<span class="item"><span class="sq" style="background:${COLORS[g]}"></span>${g}: ${finalTotals[g]}</span>`
+    ).join("");
+
+    const barTraces = GROUPS.map(g => ({
+      type: "bar",
+      name: g,
+      x: dates,
+      y: cum[g],
+      marker: { color: COLORS[g] },
+      hoverinfo: "skip"
+    }));
+
+    const hoverOrder = ["נפגעים נוספים", "נרצחים", "נופלים"];
+    const hoverText = dates.map((d, i) => {
+      let lines = [`<b>${fmtDateHe(d)}</b>`];
+      hoverOrder.forEach(g => lines.push(`${SQUARES[g]} ${g}: ${cum[g][i]}`));
+      lines.push(`<b>סה"כ הרוגים: ${totalsAtDate[i]}</b>`);
+      lines.push(`הרוגים ב-30 הימים האחרונים (כל הקבוצות): ${roll30[i]}`);
+      return lines.join("<br>");
+    });
+
+    const hoverTrace = {
+      type: "scatter",
+      mode: "markers",
+      x: dates,
+      y: totalsAtDate,
+      marker: { opacity: 0, size: 18 },
+      hoverinfo: "text",
+      hovertext: hoverText,
+      showlegend: false
+    };
+
+    const traces = [...barTraces, hoverTrace];
+
+    const layout = {
+      barmode: "stack",
+      bargap: 0.05,
+      paper_bgcolor: "#0f1115",
+      plot_bgcolor: "#0f1115",
+      font: { color: "#eef0f3", family: "Segoe UI, Arial, sans-serif" },
+      showlegend: false,
+      margin: { t: 20, r: 30, l: 50, b: 50 },
+      xaxis: {
+        title: "תאריך מוות",
+        type: "date",
+        gridcolor: "#2a2e38",
+        rangeslider: { visible: false }
+      },
+      yaxis: {
+        title: "מספר הרוגים (מצטבר)",
+        gridcolor: "#2a2e38"
+      },
+      hovermode: "x",
+      hoverlabel: {
+        bgcolor: "#171a21",
+        bordercolor: "#2a2e38",
+        font: { color: "#eef0f3", size: 13 },
+        align: "right"
+      }
+    };
+
+    document.getElementById("status").style.display = "none";
+    const chartEl = document.getElementById("chart");
+    chartEl.style.display = "block";
+    Plotly.newPlot(chartEl, traces, layout, { responsive: true, displaylogo: false });
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById("status").style.display = "none";
+    document.getElementById("titleEl").textContent = "הרוגים מהשבעה באוקטובר";
+    const box = document.getElementById("errorBox");
+    box.style.display = "block";
+    box.textContent = "שגיאה בטעינת הנתונים מהמאגר. נסו לרענן את הדף מאוחר יותר. (" + (err && err.message ? err.message : err) + ")";
+  }
+}
+
+main();
+</script>
+</body>
+</html>
