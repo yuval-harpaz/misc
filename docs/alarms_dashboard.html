@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>התראות ביטחון</title>
+<link rel="icon" href="logo.png">
+<title>דשבורד אזעקות</title>
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
@@ -208,6 +209,11 @@ select { cursor: pointer; }
   color: #8b949e;
   font-weight: 600;
 }
+.date-row-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .dual-slider-wrap {
   position: relative;
   height: 28px;
@@ -307,7 +313,7 @@ select { cursor: pointer; }
 </head>
 <body>
 
-<h1 id="mainTitle">📡 התראות ביטחוניות — ישראל</h1>
+<h1 id="mainTitle">אזעקות בישראל</h1>
 
 <div class="controls">
   <!-- Origin multi-select -->
@@ -366,9 +372,11 @@ select { cursor: pointer; }
 <!-- Dual range slider — always LTR -->
 <div class="slider-section" id="sliderSection" style="display:none;">
   <div class="date-row">
-    <input type="text" id="fromInput" placeholder="YYYY-MM-DD" onchange="onDateInputChange('from')">
     <span class="date-row-label" id="lbl-range">טווח תאריכים</span>
-    <input type="text" id="toInput" placeholder="YYYY-MM-DD" onchange="onDateInputChange('to')">
+    <div class="date-row-inputs">
+      <input type="text" id="fromInput" placeholder="YYYY-MM-DD" onchange="onDateInputChange('from')">
+      <input type="text" id="toInput" placeholder="YYYY-MM-DD" onchange="onDateInputChange('to')">
+    </div>
   </div>
   <div class="dual-slider-wrap" id="dualSliderWrap">
     <div class="slider-track-bg"></div>
@@ -383,7 +391,7 @@ select { cursor: pointer; }
 // ── TRANSLATIONS ──────────────────────────────────────────────────
 const T = {
   he: {
-    mainTitle: '📡 התראות ביטחוניות — ישראל',
+    mainTitle: 'אזעקות בישראל',
     lblOrigin: 'מקור', lblThreat: 'סוג איום', lblAgg: 'סיכום לפי', lblMetric: 'הצגה',
     lblRange: 'טווח תאריכים',
     optAll: 'הכל', optDay: 'יום', optWeek: 'שבוע', optMonth: 'חודש',
@@ -422,9 +430,9 @@ let selectedOrigins = new Set(['__all__']);  // '__all__' means all
 let availableOrigins = [];  // origins in current time window
 
 const ORIGIN_COLORS = {
-  Gaza:'#e05c5c', Lebanon:'#58a6ff', Iran:'#ff9f43',
-  Yemen:'#a29bfe', Syria:'#55efc4', Iraq:'#fd79a8',
-  FA:'#fdcb6e', Israel:'#74b9ff', '':'#b2bec3'
+  Gaza:'#e05c5c', Lebanon:'#2ecc71', Iran:'#e0e0e0',
+  Yemen:'#ff8fc0', Syria:'#8b5a2b', Iraq:'#ff9f43',
+  FA:'#fdcb6e', Israel:'#3498db', '':'#b2bec3'
 };
 const SLIDER_STEPS = 1000;
 
@@ -889,7 +897,7 @@ async function loadData(){
     minDate=new Date(rows[0].ts);
     maxDate=new Date();
 
-    const defaultFrom=new Date(2026,2,1); // local time
+    const defaultFrom=new Date(2026,1,28); // local time (28 Feb 2026, inclusive) — JS months are 0-indexed, so 1=Feb
     const defaultTo=new Date(); // today local
 
     document.getElementById('fromInput').value=toISODate(defaultFrom);
