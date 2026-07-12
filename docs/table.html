@@ -111,6 +111,7 @@
         <button id="resetButton" style="margin-right:10px;vertical-align:middle;">איפוס</button>
     </span><br><br>
     <div id="filters"></div>
+    <div id="resultCount" style="margin-bottom:10px; font-weight:bold;"></div>
     <table id="oct7table" class="display" style="width:100%">
         <thead></thead>
         <tbody></tbody>
@@ -274,6 +275,14 @@
                     paging: false, // Show all rows, no pagination
                     autoWidth: false
                 });
+
+                // Update the "N matching cases" count whenever the table is filtered/redrawn
+                function updateResultCount() {
+                    var count = table.rows({ search: 'applied' }).count();
+                    $('#resultCount').text('נמצאו ' + count + ' מקרים תואמים');
+                }
+                table.on('draw', updateResultCount);
+                updateResultCount();
 
                 // Function to update sticky column positions
                 function updateStickyColumns() {
