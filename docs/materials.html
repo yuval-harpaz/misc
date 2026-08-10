@@ -9,6 +9,23 @@
    חומרים ומידע - oct7database
   </title>
   <style>
+   .section-group {
+       margin-top: 2.5em;
+       padding-top: 1em;
+       border-top: 2px solid #5a4a42;
+   }
+   .section-group h2 {
+       margin-bottom: 0.3em;
+   }
+   /* Only one nav item, so no need to collapse it behind a toggle on mobile */
+   @media (max-width: 600px) {
+       .menu-toggle {
+           display: none;
+       }
+       .menu-links {
+           display: flex;
+       }
+   }
   </style>
  </head>
  <body>
@@ -18,17 +35,8 @@
      ☰
     </button>
     <div class="menu-links">
-     <a href="index.html">
+     <a href="https://oct7database.com">
       דף הבית
-     </a>
-     <a href="team.html">
-      הצוות ושיתופי פעולה
-     </a>
-     <a href="materials.html">
-      חומרים ומידע
-     </a>
-     <a href="materials_en.html">
-      English
      </a>
     </div>
    </nav>
@@ -40,16 +48,40 @@
      <div class="toc" style="margin-bottom:2em;">
         <h3>תוכן העניינים</h3>
         <ul>
+            <li><a href="#table-database">טבלת מאגר המידע</a></li>
             <li><a href="#map-victims">מפת הנופלים והנרצחים ב-7-9 לאוקטובר</a></li>
             <li><a href="#map-locations">מפת מיקומים מדוייקים לאירועי שבעה באוקטובר</a></li>
+            <li><a href="#cumulative-deaths">הרוגים מהשבעה באוקטובר - התפלגות מצטברת</a></li>
+            <li><a href="#table-other-victims">קורבנות מלחמה נוספים</a></li>
             <li><a href="#map-family">מיפוי קשרי המשפחה בין קורבנות הטבח והמלחמה</a></li>
             <li><a href="#map-rockets">מפת הקורבנות מירי רקטי וטילים</a></li>
-            <li><a href="#map-alarms">נתוני האזעקות</a></li>
             <li><a href="#table-idf">טבלת חללי צה"ל</a></li>
             <li><a href="#table-kidnapped">טבלת החטופים</a></li>
             <li><a href="#map-dogs">מפת הכלבים שנהרגו או נעלמו</a></li>
+            <li><a href="#alarms">נתוני האזעקות</a>
+                <ul>
+                    <li><a href="#alarms-heatmap">אזעקות לפי זמן - מפת חום</a></li>
+                    <li><a href="#alarms-dashboard">דשבורד אזעקות</a></li>
+                    <li><a href="#alarms-by-year">מפת אזעקות לפי שנה</a></li>
+                    <li><a href="#alarm-view">דפדפן אזעקות</a></li>
+                    <li><a href="#alarms-distribution">התפלגות אזעקות - ציר זמן</a></li>
+                </ul>
+            </li>
         </ul>
      </div>
+   <div class="iframe-container">
+    <div class="iframe-title" id="table-database">
+     <h3>
+      טבלת מאגר המידע
+     </h3>
+     הטבלה המרכזת את בסיס הנתונים כולו: נרצחים, נופלים וחטופים. ניתן לחפש בכל העמודות, לסנן לפי חזית, סטטוס, תפקיד, מין, גיל, מקום מגורים ותאריך, ולהגיע מכל שורה לדף ההנצחה ולאוסף הספרייה הלאומית.
+     <a href="table.html" target="_blank">
+      🔗 לצפייה בטבלה
+     </a>
+    </div>
+    <iframe height="600" src="table.html" width="800">
+    </iframe>
+   </div>
    <div class="iframe-container">
     <div class="iframe-title" id="map-victims">
      <h3>
@@ -75,6 +107,34 @@
      </a>
     </div>
     <iframe height="500" src="locations.html" width="500">
+    </iframe>
+   </div>
+   <div class="iframe-container">
+    <div class="iframe-title" id="cumulative-deaths">
+     <h3>
+      הרוגים מהשבעה באוקטובר - התפלגות מצטברת
+     </h3>
+     גרף המציג את ההתפלגות המצטברת של ההרוגים לפי תאריך המוות, מ-7 באוקטובר 2023 ועד היום, בחלוקה לנופלים, לנרצחים ולנפגעים נוספים - מוות מאירוע לבבי, תאונת דרכים או סיבה עקיפה אחרת. הנתונים נטענים מבסיס הנתונים בכל פתיחה של הדף.
+     <a href="cumulative_deaths.html" target="_blank">
+      🔗 לצפייה בגרף
+     </a>
+    </div>
+    <iframe height="600" src="cumulative_deaths.html" width="800">
+    </iframe>
+   </div>
+   <div class="iframe-container">
+    <div class="iframe-title" id="table-other-victims">
+     <h3>
+      קורבנות מלחמה נוספים
+     </h3>
+     טבלה המפרטת קורבנות שאינם נכללים בטבלאות האחרות: מי שמתו בעקבות אירוע טרור אך שלא כתוצאה ישירה ממנו, לרוב מתאונה או ממצב רפואי, וכן חטופים שלא נותרו בשבי יותר מיממה.
+
+            פתיחת הטבלה כמסמך:
+     <a href="https://docs.google.com/spreadsheets/d/1mcvYZMoBe_mHRRx6hyPwDQF9K2QSTES1ZyxO8dLLVIY/edit?usp=sharing" target="_blank">
+      גוגל
+     </a>
+    </div>
+    <iframe height="500" src="https://docs.google.com/spreadsheets/d/1mcvYZMoBe_mHRRx6hyPwDQF9K2QSTES1ZyxO8dLLVIY/edit?usp=sharing" width="800">
     </iframe>
    </div>
    <div class="iframe-container">
@@ -112,23 +172,6 @@
      </a>
     </div>
     <iframe height="500" src="rockets_victims.html" width="500">
-    </iframe>
-   </div>
-   <div class="iframe-container">
-    <div class="iframe-title" id="map-alarms">
-     <h3>
-      נתוני האזעקות
-     </h3>
-     טבלת
-     <a href="https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/alarms.csv" target="_blank">
-    csv
-     </a> .מרכזת את האזעקות מאז יוני 2019. מקושרת מפה המציגה את סך ההתרעות למיקום לפי שנה. ניתן לבחור שנה במקרא, ולראות את מספר האזעקות בריחוף מעל יישובים 
-
-     <a href="alarms_by_year.html" target="_blank">
-      🔗 לצפייה במפה
-     </a>
-    </div>
-    <iframe height="500" src="alarms_by_year.html" width="500">
     </iframe>
    </div>
     <div class="iframe-container">
@@ -181,6 +224,82 @@
      </a>
     </div>
     <iframe height="500" src="dogs.html" width="500">
+    </iframe>
+   </div>
+
+   <div class="section-group" id="alarms">
+    <h2>
+     נתוני האזעקות
+    </h2>
+    טבלת
+    <a href="https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/alarms.csv" target="_blank">
+     csv
+    </a> .מרכזת את האזעקות מאז יוני 2019, על פי נתוני פיקוד העורף. הכלים שלהלן מציגים את הנתונים בחתכים שונים - לפי זמן, לפי מקור הירי, לפי סוג האיום ולפי יישוב.
+   </div>
+
+   <div class="iframe-container">
+    <div class="iframe-title" id="alarms-heatmap">
+     <h3>
+      אזעקות לפי זמן - מפת חום
+     </h3>
+     מפת חום המציגה את צפיפות האזעקות לאורך זמן. ניתן לסנן לפי מערכה או מבצע, לפי מקור הירי - עזה, לבנון, תימן, איראן, עיראק וסוריה - לפי סוג האיום, ולחפש יישוב מסויים.
+     <a href="heatmap_by_time.html" target="_blank">
+      🔗 לצפייה במפת החום
+     </a>
+    </div>
+    <iframe height="600" src="heatmap_by_time.html" width="800">
+    </iframe>
+   </div>
+   <div class="iframe-container">
+    <div class="iframe-title" id="alarms-dashboard">
+     <h3>
+      דשבורד אזעקות
+     </h3>
+     לוח מחוונים המסכם את האזעקות בישראל לפי מקור הירי, סוג האיום וטווח תאריכים. ניתן לסכם לפי יום, שבוע או חודש, ולבחור בין ספירת אירועים לספירת התראות.
+     <a href="alarms_dashboard.html" target="_blank">
+      🔗 לצפייה בדשבורד
+     </a>
+    </div>
+    <iframe height="600" src="alarms_dashboard.html" width="800">
+    </iframe>
+   </div>
+   <div class="iframe-container">
+    <div class="iframe-title" id="alarms-by-year">
+     <h3>
+      מפת אזעקות לפי שנה
+     </h3>
+     מפה המציגה את סך ההתרעות לכל מיקום לפי שנה. ניתן לבחור שנה במקרא, ולראות את מספר האזעקות בריחוף מעל יישובים.
+     <a href="alarms_by_year.html" target="_blank">
+      🔗 לצפייה במפה
+     </a>
+    </div>
+    <iframe height="500" src="alarms_by_year.html" width="500">
+    </iframe>
+   </div>
+   <div class="iframe-container">
+    <div class="iframe-title" id="alarm-view">
+     <h3>
+      דפדפן אזעקות
+     </h3>
+     כלי לעיון באזעקות עצמן, אחת אחרי השנייה, עם פרטי המועד, המקום ומקור הירי של כל אזעקה.
+     <a href="alarm_view.html" target="_blank">
+      🔗 לצפייה בדפדפן
+     </a>
+    </div>
+    <iframe height="600" src="alarm_view.html" width="800">
+    </iframe>
+   </div>
+   <div class="iframe-container">
+    <div class="iframe-title" id="alarms-distribution">
+     <h3>
+      התפלגות אזעקות - ציר זמן
+     </h3>
+     ציר זמן של האזעקות, ולצידו התפלגות לפי שעה ביממה. ניתן לסנן לפי מערכה, מקור ירי וסוג איום - רקטות וטילים או כלי טיס עוין - ולחפש יישוב מסויים.
+     <a href="alarms_distribution.html" target="_blank">
+      🔗 לצפייה בהתפלגות
+     </a>
+    </div>
+    <iframe height="600" src="alarms_distribution.html" width="800">
     </iframe>
    </div>
    <script>
