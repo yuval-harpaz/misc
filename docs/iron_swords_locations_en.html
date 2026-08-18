@@ -1810,6 +1810,29 @@
         const BUTTON_R = 9;
         let applyLevel = () => {}, applyCategory = () => {};
 
+        // The address bar mirrors what is on the screen: the level, the
+        // colouring, and where the map sits. Two things come of that -- a view
+        // is shared by copying the url, and the buttons name themselves, since
+        // a reader who clicks one watches level=places appear and learns what
+        // that level is called. replaceState, so looking around the map does
+        // not fill the back button.
+        function viewToUrl() {
+            const url = new URL(window.location.href);
+            const centre = map.getCenter();
+            // Whichever spelling the reader arrived with stays the one written,
+            // so a url never ends up carrying both.
+            const key = url.searchParams.has('centre')
+                && !url.searchParams.has('center') ? 'centre' : 'center';
+            url.searchParams.set('level', LEVELS[level]);
+            url.searchParams.set('category', category);
+            url.searchParams.set(key, centre.lat.toFixed(5) + ',' +
+                                      centre.lng.toFixed(5));
+            url.searchParams.set('zoom', map.getZoom());
+            // The comma between the coordinates is legal in a query and reads
+            // better than %2C in a url meant to be copied into a message.
+            history.replaceState(null, '', url.toString().replace(/%2C/g, ','));
+        }
+
         function syncButtons() {
             applyLevel();
             applyCategory();
@@ -1829,6 +1852,7 @@
                 L.DomEvent.on(link, 'click', L.DomEvent.stop);
                 L.DomEvent.on(link, 'click', () => {
                     level = (level + 1) % LEVELS.length;
+                    viewToUrl();
                     syncButtons();
                     renderLegend();
                     render();
@@ -1857,6 +1881,7 @@
                 L.DomEvent.on(link, 'click', () => {
                     if (level === 3) return;
                     category = category === 'status' ? 'roles' : 'status';
+                    viewToUrl();
                     syncButtons();
                     renderLegend();
                     render();
@@ -2269,10 +2294,14 @@
         // ?front=Gaza&role=חייל&status=killed&from=2023-10-07&to=2023-10-09
         // &date=dd  (filter on the death date instead of the event date)
         // &pid=964  (open that person)
-        // &zoom=13  (open at that zoom, and the zoom the map writes back)
+        // &zoom=13  (open at that zoom)
         // &level=places      (fronts | regions | places | marks, or 0-3)
         // &category=roles    (status | roles -- what a pie is cut by)
         // &center=31.5,34.6  (open here, whatever the filters would frame)
+        // Those last four describe the view rather than filter it, and the map
+        // writes them back as the reader buttons, pans and zooms, so the address
+        // bar always says what is on the screen. The filters are read only: a
+        // checkbox the reader ticks does not rewrite the url.
         // Values are compared case-insensitively and may be comma separated.
         // A name that matches nothing is reported in the console rather than
         // silently emptying the map.
@@ -2353,30 +2382,27 @@
                           { padding: [25, 25], maxZoom: FIT_MAX_ZOOM });
         }
 
-        // The zoom lives in the address bar so it can be read off the screen
-        // and shared back. Written on a zoom the reader asks for -- wheel,
-        // buttons, keyboard, a double click -- and never at load: a number
-        // appearing in a url nobody typed reads as a filter they set.
-        // replaceState, so zooming does not fill the back button.
-        let zoomToUrl = false;
+        // Panning and zooming write themselves back the same way the buttons do,
+        // so the url keeps describing the view however the reader got there.
+        let urlFollows = false;
 
-        map.on('zoomend', function () {
-            if (!zoomToUrl) return followZoom();   // still booting: wait again
-            const url = new URL(window.location.href);
-            url.searchParams.set('zoom', map.getZoom());
-            history.replaceState(null, '', url);
+        map.on('moveend zoomend', function () {
+            if (!urlFollows) return followView();   // still booting: wait again
+            viewToUrl();
         });
 
         // Every view the boot sets -- the framing of a filtered arrival, a pid
         // focus -- is programmatic, and leaflet finishes an animated one well
         // after the call returns. The url starts following once the map has
-        // been quiet for half a second, and any zoom arriving before then is
-        // taken as more boot and starts the wait over.
+        // been quiet for half a second, and any move arriving before then is
+        // taken as more boot and starts the wait over. The first thing it does
+        // when it takes over is write the view the boot arrived at, so the
+        // names are there to read before anything has been clicked.
         let settling;
 
-        function followZoom() {
+        function followView() {
             clearTimeout(settling);
-            settling = setTimeout(() => { zoomToUrl = true; }, 500);
+            settling = setTimeout(() => { urlFollows = true; viewToUrl(); }, 500);
         }
 
         // The two view buttons are a url as well, so a link can hand the reader
@@ -2466,8 +2492,8 @@
         }
 
         const pidParam = params.get('pid');
-        if (pidParam) setTimeout(() => { focusOnPid(pidParam); followZoom(); }, 300);
-        else followZoom();
+        if (pidParam) setTimeout(() => { focusOnPid(pidParam); followView(); }, 300);
+        else followView();
     </script>
 </body>
 <!-- 2212 people, built by code/iron_swords_map.py -->
