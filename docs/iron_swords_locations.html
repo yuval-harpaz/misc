@@ -2270,6 +2270,9 @@
         // &date=dd  (filter on the death date instead of the event date)
         // &pid=964  (open that person)
         // &zoom=13  (open at that zoom, and the zoom the map writes back)
+        // &level=places      (fronts | regions | places | marks, or 0-3)
+        // &category=roles    (status | roles -- what a pie is cut by)
+        // &center=31.5,34.6  (open here, whatever the filters would frame)
         // Values are compared case-insensitively and may be comma separated.
         // A name that matches nothing is reported in the console rather than
         // silently emptying the map.
@@ -2376,19 +2379,56 @@
             settling = setTimeout(() => { zoomToUrl = true; }, 500);
         }
 
-        function applyUrlZoom(params) {
+        // The two view buttons are a url as well, so a link can hand the reader
+        // the map already in the shape its page is about -- localities for a
+        // page of localities -- instead of asking them to find the button.
+        function applyUrlView(params) {
+            const wantedLevel = params.get('level');
+            if (wantedLevel !== null) {
+                const name = wantedLevel.trim().toLowerCase();
+                const index = LEVELS.indexOf(name);
+                const number = Number(name);
+                if (index >= 0) level = index;
+                else if (name !== '' && Number.isInteger(number)
+                         && number >= 0 && number < LEVELS.length) level = number;
+                else console.warn('unknown level: ' + wantedLevel +
+                    '. known values: ' + LEVELS.join(', '));
+            }
+            const wantedCategory = params.get('category');
+            if (wantedCategory !== null) {
+                const name = wantedCategory.trim().toLowerCase();
+                if (CATEGORIES.indexOf(name) >= 0) category = name;
+                else console.warn('unknown category: ' + wantedCategory +
+                    '. known values: ' + CATEGORIES.join(', '));
+            }
+        }
+
+        // Where the map opens. A lumped level stands on one mark per front, and
+        // framing to that is framing to a point -- a link that wants a place in
+        // the middle has to say so.
+        function urlCentre(params) {
+            const raw = params.get('center') || params.get('centre');
+            if (raw === null) return null;
+            const parts = raw.split(',').map(v => Number(v.trim()));
+            if (parts.length !== 2 || !parts.every(Number.isFinite)) {
+                console.warn('center is not a lat,lon pair: ' + raw);
+                return null;
+            }
+            return parts;
+        }
+
+        function urlZoom(params) {
             const raw = params.get('zoom');
-            if (raw === null) return false;
+            if (raw === null) return null;
             const wanted = Number(raw);
             if (!Number.isFinite(wanted)) {
                 console.warn('zoom is not a number: ' + raw);
-                return false;
+                return null;
             }
             const zoom = Math.min(Math.max(wanted, map.getMinZoom()),
                                   map.getMaxZoom());
             if (zoom !== wanted) console.warn('zoom clamped to ' + zoom);
-            map.setZoom(zoom);
-            return true;
+            return zoom;
         }
 
         /* --------------------------------------------------------------- boot */
@@ -2397,13 +2437,12 @@
         buildCampaigns();
 
         const params = new URLSearchParams(window.location.search);
+        applyUrlView(params);
         // A link to one person is not a link to the lump they are inside, so a
         // pid in the url opens the level of exact locations whatever the map
         // opens on.
-        if (params.get('pid')) {
-            level = 3;
-            syncButtons();
-        }
+        if (params.get('pid')) level = 3;
+        syncButtons();
         renderLegend();
         setRange(CONFIG.date_min, CONFIG.date_max, true);
         // Opened with a filter in the url: show the panel, so it is obvious the
@@ -2414,10 +2453,17 @@
 
         markActiveCampaign();
         render();
-        if (filtered) fitToVisible();
-        // After the framing, not before: a zoom in the url was asked for by
-        // name, and fitToVisible would otherwise overrule it.
-        applyUrlZoom(params);
+        const centre = urlCentre(params), zoom = urlZoom(params);
+        if (filtered && !centre) fitToVisible();
+        // After the framing, not before: a centre and a zoom in the url were
+        // asked for by name, and fitToVisible would otherwise overrule them.
+        // Both in one move, and unanimated: a pan and a zoom animating over
+        // each other on the boot end up somewhere neither asked for.
+        if (centre || zoom !== null) {
+            map.setView(centre || map.getCenter(),
+                        zoom === null ? map.getZoom() : zoom,
+                        { animate: false });
+        }
 
         const pidParam = params.get('pid');
         if (pidParam) setTimeout(() => { focusOnPid(pidParam); followZoom(); }, 300);
