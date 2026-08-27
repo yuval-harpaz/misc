@@ -110,6 +110,16 @@
             text-align: right;
         }
         table.params th { background: #f3ece6; }
+        .big-link {
+            display: inline-block;
+            padding: 8px 18px;
+            border-radius: 14px;
+            background: #5a4a42;
+            color: #fff !important;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .big-link:hover { background: #7a6a62; }
     </style>
 </head>
 <body>
@@ -132,6 +142,7 @@
             <li><a href="#about">מה יש במפה</a></li>
             <li><a href="#menus">התפריטים</a></li>
             <li><a href="#url">כתובת המפה כקישור לשיתוף</a></li>
+            <li><a href="#database">מאגר המידע</a></li>
         </ul>
     </div>
 
@@ -151,7 +162,7 @@
         <a href="iron_swords_locations.html">המפה</a> מציגה את הנרצחים, הנופלים והחטופים
         של מלחמת חרבות ברזל, מהשבעה באוקטובר 2023 ועד היום, על פי מאגר המידע של oct7database.
         לכל אדם מסומן <b>מקום האירוע</b> - המקום שבו נהרג או נחטף - ובמקרה שמת במקום אחר
-        (למשל חטוף שנרצח בשבי, או פצוע שמת בבית החולים) גם <b>מקום המוות</b>.
+        (למשל חטוף שנרצח בשבי, או פצוע שנפטר בבית החולים) גם <b>מקום המוות</b>.
     </p>
     <p>
         המיקומים ידועים ברמות דיוק שונות. חלקם כתובת מדויקת, חלקם ידועים רק ברמת היישוב
@@ -165,7 +176,7 @@
         <li><b>מיקומים מדויקים</b> - כל אדם במקומו. ברמה זו נפתחת רשימת שכבות במקרא, ואפשר להסתיר כל סוג סימון בנפרד.</li>
     </ul>
     <p>
-        לחיצה על סימון פותחת חלון עם רשימת האנשים שמאחוריו, כל אחד עם התאריך, השם והתפקיד.
+        לחיצה על סימון פותחת חלון עם שמות האנשים שמאחוריו, כל אחד עם התאריך, השם והתפקיד.
         תיבת החיפוש בפינה מוצאת אדם לפי שם או מקום לפי שמו, וממקדת את המפה עליו.
     </p>
 
@@ -233,10 +244,21 @@
         <tr><td><code>pid</code></td><td>פתיחה על אדם מסוים לפי המזהה שלו במאגר</td><td><code>pid=964</code></td></tr>
     </table>
 
-    <p style="margin-top:2em;font-size:0.9em;color:#5a4a42">
-        המפה נבנית מטבלת המאגר ומתעדכנת איתה. הערות ותיקונים למיקומים יתקבלו בברכה
-        דרך <a href="https://oct7database.com">האתר הראשי</a>.
+    <h2 id="database">מאגר המידע</h2>
+    <p>
+        המפה נבנית מטבלת מאגר המידע ומתעדכנת איתה. השמות והפרטים של כל מי שמופיע במפה
+        נמצאים בטבלה, ומשם אפשר גם להוריד את הנתונים (XLSX).
     </p>
+    <p id="extra-victims">
+        מחוץ לרשימה המרכזית במאגר המידע, קיימת רשימה עם נפגעים נוספים של המלחמה שאינם כלולים במפה: אנשים שנחטפו
+        ושוחררו, חולצו או נמלטו כבר בשבעה באוקטובר, אנשים שהוחזקו כבני ערובה לזמן קצר, ואנשים שמתו במהלך
+        המלחמה בעיקר מבעיות בריאות ומתאונות. הנתונים האלה נגישים דרך קישור בתוך מאגר המידע.
+    </p>
+    <p>
+        הערות ותיקונים יתקבלו בברכה בדוא"ל
+        <a href="mailto:info@oct7database.com">info@oct7database.com</a>.
+    </p>
+    <p><a class="big-link" href="table.html">למאגר המידע</a></p>
 </div>
 
 <script>
@@ -280,6 +302,55 @@
     }
 
     show(0);
+
+    // The additional victims, counted from the csv itself on every visit so
+    // the numbers follow the data. Kidnapped and hostages by Status, health
+    // and accidents by the cause of death; the whole sentence is written only
+    // once the counts are in, and the fixed text above stays if they never are.
+    const ADDITIONAL_CSV = 'https://raw.githubusercontent.com/yuval-harpaz/alarms/' +
+        'refs/heads/master/data/oct7database_additional.csv';
+
+    function parseCsv(text) {
+        const rows = [];
+        let row = [], cell = '', quoted = false;
+        for (let i = 0; i < text.length; i++) {
+            const c = text[i];
+            if (quoted) {
+                if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+                else if (c === '"') quoted = false;
+                else cell += c;
+            } else if (c === '"') quoted = true;
+            else if (c === ',') { row.push(cell); cell = ''; }
+            else if (c === '\n' || c === '\r') {
+                if (c === '\r' && text[i + 1] === '\n') i++;
+                row.push(cell); rows.push(row); row = []; cell = '';
+            } else cell += c;
+        }
+        if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+        const head = rows.shift();
+        return rows.filter(r => r.length > 1).map(r =>
+            Object.fromEntries(head.map((h, i) => [h, r[i] || ''])));
+    }
+
+    fetch(ADDITIONAL_CSV).then(r => r.text()).then(text => {
+        const rows = parseCsv(text);
+        const has = (s, words) => words.some(w => s.includes(w));
+        const n = {
+            kidnapped: rows.filter(r => r['Status'].startsWith('kidnapped')).length,
+            hostage: rows.filter(r => r['Status'].startsWith('hostage')).length,
+            health: rows.filter(r => has(r['סיבת המוות'],
+                ['לבבי', 'מפרצת', 'קוצר נשימה'])).length,
+            accident: rows.filter(r => has(r['סיבת המוות'],
+                ['תאונה', 'חבלה'])).length
+        };
+        document.getElementById('extra-victims').innerHTML =
+            'מחוץ לרשימה המרכזית במאגר המידע, קיימת רשימה עם ' + rows.length +
+            ' נפגעים נוספים של המלחמה שאינם ' +
+            'כלולים במפה: ' + n.kidnapped + ' שנחטפו ושוחררו, חולצו או נמלטו כבר בשבעה באוקטובר, ' +
+            n.hostage + ' שהוחזקו כבני ערובה לזמן קצר, ' + n.health +
+            ' שמתו מבעיות בריאות - בעיקר אירועי לב בזמן אזעקה - ו-' + n.accident +
+            ' שמתו בתאונות. הנתונים האלה נגישים דרך קישור בתוך מאגר המידע.';
+    }).catch(() => {});
 </script>
 </body>
 </html>
