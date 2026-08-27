@@ -137,7 +137,7 @@
 
     <h2 id="examples">דוגמאות</h2>
     <p>
-        ארבע תצוגות של אותה מפה. לחצו על כפתור כדי להחליף; הקישור מתחת למפה פותח אותה בחלון
+        חמש תצוגות של אותה מפה. לחצו על כפתור כדי להחליף; הקישור מתחת למפה פותח אותה בחלון
         משלה.
     </p>
     <div class="example-buttons" id="example-buttons"></div>
@@ -228,6 +228,7 @@
         <tr><td><code>level</code></td><td>רמת תצוגה: fronts, places, marks</td><td><code>level=places</code></td></tr>
         <tr><td><code>category</code></td><td>פילוח: status או roles</td><td><code>category=roles</code></td></tr>
         <tr><td><code>base</code></td><td>מפת רקע: govmap, google, esri-latest, esri-2024-11-18</td><td><code>base=govmap</code></td></tr>
+        <tr><td><code>layers</code></td><td>שכבות ברצועת עזה: localities (גבולות), neighbourhoods (מרכזי שכונות)</td><td><code>layers=localities,neighbourhoods</code></td></tr>
         <tr><td><code>center</code>, <code>zoom</code></td><td>מרכז המפה והזום</td><td><code>center=31.4,34.5&amp;zoom=11</code></td></tr>
         <tr><td><code>pid</code></td><td>פתיחה על אדם מסוים לפי המזהה שלו במאגר</td><td><code>pid=964</code></td></tr>
     </table>
@@ -252,10 +253,13 @@
                'kidnapped%3B+killed%3B+returned&base=govmap&category=roles' },
         { name: 'התמרון ברצועת עזה',
           url: 'iron_swords_locations.html?center=31.34601,34.30421&zoom=13' +
-               '&front=Gaza&base=esri-latest&from=2023-10-27&to=2025-10-10' },
+               '&front=Gaza&base=esri-latest&from=2023-10-27&to=2025-10-10' +
+               '&layers=localities' },
         { name: 'איראן',
           url: 'iron_swords_locations.html?base=google&front=Iran' +
-               '&center=32.08490,35.05051&zoom=9&level=places' }
+               '&center=32.08490,35.05051&zoom=9&level=places' },
+        { name: 'פסטיבל נובה',
+          url: 'iron_swords_locations.html?center=31.39800,34.47284&zoom=19' }
     ];
 
     const frame = document.getElementById('example-frame');
