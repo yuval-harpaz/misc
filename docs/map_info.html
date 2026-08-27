@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <link href="logo.png" rel="icon"/>
+    <link href="oct7database.css" rel="stylesheet" type="text/css"/>
+    <title>מדריך למפת המיקומים - oct7database</title>
+    <style>
+        .container h2 {
+            margin-top: 1.8em;
+            padding-top: 0.6em;
+            border-top: 2px solid #5a4a42;
+        }
+        .container h3 { color: #5a4a42; margin-bottom: 0.3em; }
+        .container p, .container li { line-height: 1.6; }
+        code {
+            background: #f3ece6;
+            padding: 1px 5px;
+            border-radius: 4px;
+            direction: ltr;
+            unicode-bidi: embed;
+            font-size: 0.95em;
+        }
+        .home-link img {
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+            margin-inline-end: 6px;
+        }
+        /* Two nav items, so no need to collapse them behind a toggle on mobile */
+        @media (max-width: 600px) {
+            .menu-toggle { display: none; }
+            .menu-links { display: flex; }
+        }
+
+        /* The two menus, cut from one snapshot (menues.png) that has both open.
+           Each frame shows a window onto the full-size image. */
+        .shots {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-start;
+            margin: 1em 0;
+            /* Laid out left to right like the map itself: the filter menu
+               is on the map's left and the display menu on its right, and
+               the page's rtl would swap them. */
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        .shot {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            background: #fff;
+            flex: none;
+        }
+        .shot img {
+            position: absolute;
+            width: 1083px;
+            max-width: none;
+            height: auto;
+        }
+        .shot-caption {
+            font-size: 0.9em;
+            color: #5a4a42;
+            margin-top: 4px;
+        }
+        .shot-full { max-width: 100%; border-radius: 8px; border: 1px solid #bbb; }
+
+        /* The four examples: buttons and one frame */
+        .example-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0;
+        }
+        .example-buttons button {
+            padding: 6px 14px;
+            border: 1px solid #5a4a42;
+            border-radius: 14px;
+            background: #f6f0ea;
+            color: #5a4a42;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .example-buttons button:hover { background: #e8ddd3; }
+        .example-buttons button.active {
+            background: #5a4a42;
+            color: #fff;
+        }
+        #example-frame {
+            width: 100%;
+            height: 620px;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .example-link {
+            font-size: 0.9em;
+            margin-top: 6px;
+            word-break: break-all;
+        }
+        table.params { border-collapse: collapse; margin: 0.5em 0; }
+        table.params td, table.params th {
+            border: 1px solid #ccc;
+            padding: 4px 8px;
+            vertical-align: top;
+            text-align: right;
+        }
+        table.params th { background: #f3ece6; }
+    </style>
+</head>
+<body>
+<div class="container1">
+    <nav>
+        <button class="menu-toggle">☰</button>
+        <div class="menu-links">
+            <a href="https://oct7database.com" class="home-link"><img src="https://static.wixstatic.com/media/b41f40_b869656b57a84afb80d9c4f7c5be0620~mv2.png/v1/fill/w_29,h_29,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/a8a8c1dcb8b069f8d8ee73bd8c32b96dac490515.png" alt="">דף הבית</a>
+            <a href="iron_swords_locations.html">למפה</a>
+        </div>
+    </nav>
+    <h1>מדריך למפת המיקומים של חרבות ברזל</h1>
+</div>
+
+<div class="container">
+    <div class="toc" style="margin-bottom:2em;">
+        <h3>תוכן העניינים</h3>
+        <ul>
+            <li><a href="#examples">דוגמאות</a></li>
+            <li><a href="#about">מה יש במפה</a></li>
+            <li><a href="#menus">התפריטים</a></li>
+            <li><a href="#url">כתובת המפה כקישור לשיתוף</a></li>
+        </ul>
+    </div>
+
+    <h2 id="examples">דוגמאות</h2>
+    <p>
+        ארבע תצוגות של אותה מפה. לחצו על כפתור כדי להחליף; הקישור מתחת למפה פותח אותה בחלון
+        משלה.
+    </p>
+    <div class="example-buttons" id="example-buttons"></div>
+    <iframe id="example-frame" title="מפת המיקומים" loading="lazy"></iframe>
+    <div class="example-link">
+        <a id="example-open" href="iron_swords_locations.html" target="_blank" rel="noopener">פתיחה בחלון נפרד</a>
+    </div>
+
+    <h2 id="about">מה יש במפה</h2>
+    <p>
+        <a href="iron_swords_locations.html">המפה</a> מציגה את הנרצחים, הנופלים והחטופים
+        של מלחמת חרבות ברזל, מהשבעה באוקטובר 2023 ועד היום, על פי מאגר המידע של oct7database.
+        לכל אדם מסומן <b>מקום האירוע</b> - המקום שבו נהרג או נחטף - ובמקרה שמת במקום אחר
+        (למשל חטוף שנרצח בשבי, או פצוע שמת בבית החולים) גם <b>מקום המוות</b>.
+    </p>
+    <p>
+        המיקומים ידועים ברמות דיוק שונות. חלקם כתובת מדויקת, חלקם ידועים רק ברמת היישוב
+        או השכונה, וחלקם מוכללים בכוונה: מיקומים מדויקים מוצגים רק במקומות שכבר פורסמו
+        בתקשורת או במקורות פתוחים, וכל השאר מסומנים בעיגול בשטח היישוב.
+        המפה מציעה שלוש רמות תצוגה:
+    </p>
+    <ul>
+        <li><b>זירות</b> - סימון אחד לכל זירת לחימה (עזה, צפון, יהודה ושומרון, איראן...), עם המספר הכולל.</li>
+        <li><b>יישובים</b> - סימון לכל יישוב או שכונה, בגודל שמשקף את מספר האנשים, ומחולק לפי צבעים.</li>
+        <li><b>מיקומים מדויקים</b> - כל אדם במקומו. ברמה זו נפתחת רשימת שכבות במקרא, ואפשר להסתיר כל סוג סימון בנפרד.</li>
+    </ul>
+    <p>
+        לחיצה על סימון פותחת חלון עם רשימת האנשים שמאחוריו, כל אחד עם התאריך, השם והתפקיד.
+        תיבת החיפוש בפינה מוצאת אדם לפי שם או מקום לפי שמו, וממקדת את המפה עליו.
+    </p>
+
+    <h2 id="menus">התפריטים</h2>
+    <p>
+        למפה שני תפריטים: <b>סינון</b> משמאל, שקובע <i>מי</i> מוצג, ו<b>תצוגה</b> מימין,
+        שקובע <i>איך</i>. בצילום המסך שניהם פתוחים:
+    </p>
+    <div class="shots">
+        <div>
+            <div class="shot" style="width:275px;height:715px">
+                <img src="menues.png" alt="תפריט הסינון והמקרא" style="left:0;top:0">
+            </div>
+            <div class="shot-caption">תפריט הסינון, ומתחתיו המקרא</div>
+        </div>
+        <div>
+            <div class="shot" style="width:215px;height:385px">
+                <img src="menues.png" alt="תפריט התצוגה" style="left:-868px;top:-78px">
+            </div>
+            <div class="shot-caption">תפריט התצוגה</div>
+        </div>
+    </div>
+
+    <h3>סינון</h3>
+    <p>
+        הכותרת של התפריט מציגה את המספר המוצג מתוך הכלל (בצילום: 54 מתוך 2212) וכפתור
+        <b>איפוס</b>, שמחזיר את כל הסינונים ואת התצוגה למצב ההתחלתי. לחיצה על הכותרת פותחת
+        וסוגרת את התפריט.
+    </p>
+    <ul>
+        <li><b>כפתורי המבצעים</b> - קובעים את טווח התאריכים בלחיצה אחת: חרבות ברזל (הכל), 7 באוקטובר, תמרון בעזה, עם כלביא, שאגת הארי.</li>
+        <li><b>טווח תאריכים</b> - שתי תיבות תאריך, "מ" משמאל ו"עד" מימין, ומתחתיהן סרגל עם שתי נקודות לגרירה. הטווח נמדד לפי <b>תאריך האירוע</b> או לפי <b>תאריך המוות</b>, לבחירה. בסינון לפי תאריך מוות, חטופים ששרדו ושוחררו אינם מוצגים.</li>
+        <li><b>זירה</b> - עזה, צפון, איראן, יהודה ושומרון, עורף ועוד. המספר בסוגריים הוא כמות האנשים בכל ערך במאגר כולו.</li>
+        <li><b>תפקיד</b> - אזרח, חייל, שוטר, כיתת כוננות, שב"כ, כבאי, צוות רפואי.</li>
+        <li><b>סטטוס</b> - נהרג, נחטף, נחטף ונרצח, שוחרר, חולץ, וכן הלאה. הצירופים מתארים את הרצף: למשל "נחטף; נהרג; הוחזר".</li>
+    </ul>
+    <h3>תצוגה</h3>
+    <ul>
+        <li><b>תצוגה</b> - רמת התצוגה: זירות, יישובים או מיקומים מדויקים.</li>
+        <li><b>פילוח</b> - לפי מה נחתכות העוגות: נהרגו \ נחטפו, או אזרחים \ שוטרים \ חיילים. בפילוח לפי תפקיד לא נספרים שורדי השבי ששוחררו או חולצו.</li>
+        <li><b>מפת רקע</b> - GovMap (המרכז למיפוי ישראל), Google, Esri העדכני, ו-Esri מנובמבר 2024. על צילומי הלוויין של Esri, שאין עליהם שמות, המפה מוסיפה בעצמה שמות יישובים מ-OpenStreetMap.</li>
+        <li><b>שכבות ברצועת עזה</b> - גבולות שכונות ויישובים (OSM) ומרכזי שכונות (OCHA), כדי לדעת באיזו שכונה עומד סימון ברצועה.</li>
+        <li><b>הדגשת טקסט</b> - ארבע דרכים להפריד את הכתוביות מהרקע, לפי המסך והעין. הבחירה נשמרת בדפדפן.</li>
+    </ul>
+
+    <h2 id="url">כתובת המפה כקישור לשיתוף</h2>
+    <p>
+        שורת הכתובת של הדפדפן משקפת תמיד את מה שמוצג: הסינון, רמת התצוגה, הפילוח, מפת הרקע,
+        המרכז והזום. כל מה שנשאר בברירת המחדל לא נכתב, כך שהכתובת הריקה
+        <code>iron_swords_locations.html</code> היא המפה כפי שהיא נפתחת, וכל פרמטר בכתובת הוא
+        משהו ששיניתם. כדי לשתף תצוגה מסוימת, פשוט העתיקו את הכתובת.
+    </p>
+    <table class="params">
+        <tr><th>פרמטר</th><th>משמעות</th><th>דוגמה</th></tr>
+        <tr><td><code>front</code></td><td>זירה, אפשר כמה מופרדות בפסיק</td><td><code>front=Gaza,West+Bank</code></td></tr>
+        <tr><td><code>role</code></td><td>תפקיד</td><td><code>role=חייל</code></td></tr>
+        <tr><td><code>status</code></td><td>סטטוס</td><td><code>status=killed</code></td></tr>
+        <tr><td><code>from</code>, <code>to</code></td><td>טווח התאריכים</td><td><code>to=2023-10-09</code></td></tr>
+        <tr><td><code>date=dd</code></td><td>סינון לפי תאריך מוות במקום תאריך אירוע</td><td></td></tr>
+        <tr><td><code>level</code></td><td>רמת תצוגה: fronts, places, marks</td><td><code>level=places</code></td></tr>
+        <tr><td><code>category</code></td><td>פילוח: status או roles</td><td><code>category=roles</code></td></tr>
+        <tr><td><code>base</code></td><td>מפת רקע: govmap, google, esri-latest, esri-2024-11-18</td><td><code>base=govmap</code></td></tr>
+        <tr><td><code>center</code>, <code>zoom</code></td><td>מרכז המפה והזום</td><td><code>center=31.4,34.5&amp;zoom=11</code></td></tr>
+        <tr><td><code>pid</code></td><td>פתיחה על אדם מסוים לפי המזהה שלו במאגר</td><td><code>pid=964</code></td></tr>
+    </table>
+
+    <p style="margin-top:2em;font-size:0.9em;color:#5a4a42">
+        המפה נבנית מטבלת המאגר ומתעדכנת איתה. הערות ותיקונים למיקומים יתקבלו בברכה
+        דרך <a href="https://oct7database.com">האתר הראשי</a>.
+    </p>
+</div>
+
+<script>
+    // The four views. Relative to this page, so they work from the same
+    // folder wherever it is served from -- info.oct7database.com or a copy.
+    const EXAMPLES = [
+        { name: 'חרבות ברזל, חללים וחטופים',
+          url: 'iron_swords_locations.html' },
+        { name: "7-9 אוק' לפי תפקיד אזרחי",
+          url: 'iron_swords_locations.html?center=31.39878,34.41227&zoom=11' +
+               '&to=2023-10-09&front=Gaza,West+Bank&level=places' +
+               '&status=killed,kidnapped%3B+killed%3B+retrieved,' +
+               'killed%3B+kidnapped%3B+retrieved,killed%3B+kidnapped%3B+returned,' +
+               'kidnapped%3B+killed%3B+returned&base=govmap&category=roles' },
+        { name: 'התמרון ברצועת עזה',
+          url: 'iron_swords_locations.html?center=31.34601,34.30421&zoom=13' +
+               '&front=Gaza&base=esri-latest&from=2023-10-27&to=2025-10-10' },
+        { name: 'איראן',
+          url: 'iron_swords_locations.html?base=google&front=Iran' +
+               '&center=32.08490,35.05051&zoom=9&level=places' }
+    ];
+
+    const frame = document.getElementById('example-frame');
+    const open = document.getElementById('example-open');
+    const bar = document.getElementById('example-buttons');
+    const buttons = EXAMPLES.map((example, index) => {
+        const button = document.createElement('button');
+        button.textContent = example.name;
+        button.onclick = () => show(index);
+        bar.appendChild(button);
+        return button;
+    });
+
+    function show(index) {
+        buttons.forEach((button, i) => button.classList.toggle('active', i === index));
+        frame.src = EXAMPLES[index].url;
+        open.href = EXAMPLES[index].url;
+    }
+
+    show(0);
+</script>
+</body>
+</html>
