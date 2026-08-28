@@ -98,6 +98,50 @@
         .resizer:hover {
             background-color: rgba(76, 175, 80, 0.5);
         }
+
+        /* Single-person view: details on the right third, map on the left two thirds */
+        #single-view {
+            display: flex;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        #map-iframe-wrap {
+            flex: 2 1 0;
+            min-width: 0;
+        }
+
+        #details-panel {
+            flex: 1 1 0;
+            min-width: 0;
+            box-sizing: border-box;
+            height: 800px;
+            overflow-y: auto;
+            background: #e2d2c3; /* site background (#ede0d4), a bit darker */
+            border: 1px solid #c9b8a6;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        #details-panel img {
+            display: block;
+            max-width: 100%;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        #details-panel h3 {
+            margin: 0 0 10px 0;
+        }
+
+        #details-panel .detail-row {
+            margin: 6px 0;
+            word-break: break-word;
+        }
+
+        #details-panel .detail-label {
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -117,9 +161,30 @@
         <tbody></tbody>
     </table>
     <div id="map-container" style="display:none; margin-top:20px;">
-        <iframe id="map-iframe" width="100%" height="800" frameborder="0" style="border:0"></iframe>
+        <div id="single-view">
+            <div id="details-panel"></div>
+            <div id="map-iframe-wrap">
+                <iframe id="map-iframe" width="100%" height="800" frameborder="0" style="border:0"></iframe>
+            </div>
+        </div>
     </div>
     <script>
+        // Person images (pid -> URL), loaded independently; the details panel re-renders once they arrive
+        var imageMap = {};
+        var currentDetailPid = null;
+        var renderDetails = null; // assigned once the main data is loaded
+        Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/images.tsv", {
+            download: true,
+            header: true,
+            delimiter: "\t",
+            complete: function (imgResults) {
+                imgResults.data.forEach(function (r) {
+                    if (r.pid && r.URL) imageMap[r.pid.trim()] = r.URL.trim();
+                });
+                if (currentDetailPid !== null && renderDetails) renderDetails(currentDetailPid);
+            }
+        });
+
         // Load geni data first, then main CSV
         var geniMap = {};
         Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/geni.csv", {
@@ -386,6 +451,24 @@
                     }
                 });
 
+                // Memorial sites: domain fragment, filter label, short link label.
+                // Drives the אתר הנצחה filter (options + matching) and the link text in the details panel.
+                // Entries without a filter label are matched only for link text and count as "אחר" in the filter.
+                // Order matters: 'gov.il' is a suffix of other domains, so it must come last.
+                var memorialSites = [
+                    { site: 'idf.il', label: 'חללי צה"ל', short: 'צה"ל' },
+                    { site: 'laad.btl.gov.il', label: 'ביטוח לאומי (אזרחים)', short: 'לעד' },
+                    { site: 'lezichram.police.gov.il', label: 'משטרת ישראל', short: 'משטרה' },
+                    { site: 'shabak.gov.il', label: 'שב"כ', short: 'שב"כ' },
+                    { site: 'izkor.gov.il', label: 'יזכור', short: 'יזכור' },
+                    { site: 'gov.il', short: 'משרד החוץ' }
+                ];
+                var memorialFilterSites = memorialSites.filter(function (s) { return s.label; });
+                function memorialSiteName(url) {
+                    var s = memorialSites.find(function (s) { return url.includes(s.site); });
+                    return s ? s.short : 'קישור';
+                }
+
                 // Add memorial site filter (הנצחה column) - inline with other filter buttons
                 filterHtml += `<div style="display:inline-block; margin-left:15px; vertical-align:top; position:relative;">`;
                 filterHtml += `<button class="filter-button" data-filter="filterMemorial" style="padding:5px 10px; cursor:pointer;">אתר הנצחה ▼</button>`;
@@ -394,11 +477,9 @@
                 filterHtml += `<button class="select-all-memorial-btn" style="margin-left:5px; padding:2px 8px; cursor:pointer;">הכל</button>`;
                 filterHtml += `<button class="clear-all-memorial-btn" style="padding:2px 8px; cursor:pointer;">נקה</button>`;
                 filterHtml += `</div>`;
-                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="idf.il" checked> חללי צה"ל</label>`;
-                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="laad.btl.gov.il" checked> ביטוח לאומי (אזרחים)</label>`;
-                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="lezichram.police.gov.il" checked> משטרת ישראל</label>`;
-                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="shabak.gov.il" checked> שב"כ</label>`;
-                filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="izkor.gov.il" checked> יזכור</label>`;
+                memorialFilterSites.forEach(function (s) {
+                    filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="${s.site}" checked> ${s.label}</label>`;
+                });
                 filterHtml += `<label style="display:block; white-space:nowrap;"><input type="checkbox" class="memorial-checkbox" value="other" checked> אחר / ללא</label>`;
                 filterHtml += `</div></div>`;
 
@@ -488,23 +569,105 @@
                     }
                 });
 
-                // Check for single row after filtering
+                function escapeHtml(str) {
+                    return String(str)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;');
+                }
+
+                // Render the person details panel (picture + all fields) for a given pid
+                renderDetails = function (pid) {
+                    var row = data.find(function (r) { return r.pid === pid; });
+                    if (!row) return;
+
+                    var name = [row['שם פרטי'], row['שם נוסף'], row['שם משפחה']]
+                        .filter(Boolean).join(' ');
+                    if (row['כינוי']) name += ' (' + row['כינוי'] + ')';
+                    var gender = (row.Gender && translations[row.Gender]) || row.Gender || '';
+                    var age = parseInt(row.Age);
+                    age = isNaN(age) ? '' : age.toString();
+
+                    var html = '';
+                    if (imageMap[pid]) {
+                        html += '<img src="' + escapeHtml(imageMap[pid]) + '" alt="' + escapeHtml(name) + '">';
+                    }
+                    html += '<h3>' + escapeHtml([name, gender, age].filter(Boolean).join(', ')) + '</h3>';
+
+                    function addRow(label, value, isHtml) {
+                        if (!value) return;
+                        html += '<div class="detail-row"><span class="detail-label">' + escapeHtml(label) + ':</span> ' +
+                            (isHtml ? value : escapeHtml(value)) + '</div>';
+                    }
+
+                    addRow(translations['Residence'], row.Residence);
+                    addRow('מקום האירוע', row['מקום האירוע']);
+                    if (row['מקום המוות'] && row['מקום המוות'] !== row['מקום האירוע']) {
+                        addRow('מקום המוות', row['מקום המוות']);
+                    }
+
+                    // All remaining columns, in table order, with the same translations/links as the table
+                    var alreadyShown = ['pid', 'שם פרטי', 'שם משפחה', 'שם נוסף', 'כינוי', 'Gender', 'Age',
+                        'Residence', 'מקום האירוע', 'מקום המוות'];
+                    columns.forEach(function (col) {
+                        if (alreadyShown.indexOf(col.data) !== -1) return;
+                        var val = row[col.data];
+                        // Memorial links + NLI link share one row: "הנצחה: משטרה, הספריה הלאומית"
+                        if (col.data === 'הנצחה') {
+                            var links = ((val || '').match(/https?:\/\/[^\s]+/g) || []).map(function (url) {
+                                return '<a href="' + escapeHtml(url) + '" target="_blank">' +
+                                    escapeHtml(memorialSiteName(url)) + '</a>';
+                            });
+                            if (row['הספריה הלאומית']) {
+                                links.push('<a href="https://www.nli.org.il/he/authorities/' +
+                                    escapeHtml(row['הספריה הלאומית']) + '" target="_blank">הספריה הלאומית</a>');
+                            }
+                            addRow(col.title, links.join(', '), true);
+                            return;
+                        }
+                        if (col.data === 'הספריה הלאומית') return; // shown in the הנצחה row
+                        if (!val) return;
+                        if (col.data === 'front' && translations[val]) val = translations[val];
+                        if (col.data === 'Status') {
+                            val = val.split(';').map(function (part) {
+                                var trimmed = part.trim();
+                                return translations[trimmed] || trimmed;
+                            }).join('; ');
+                        }
+                        if (col.data === 'geni') {
+                            var geniParts = val.split('/');
+                            var geniText = geniParts[geniParts.length - 2] || val;
+                            addRow("ג'ני", '<a href="' + escapeHtml(val) + '" target="_blank">' +
+                                escapeHtml(geniText) + '</a>', true);
+                            return;
+                        }
+                        addRow(col.title, val);
+                    });
+
+                    $('#details-panel').html(html);
+                };
+
+                // Check for single row after filtering (by click, by filters or by free search)
                 table.on('draw', function () {
-                    var info = table.page.info();
                     var visibleRows = table.rows({ filter: 'applied' }).data().length;
-                    // Only show map if there's exactly 1 row AND selectedPid is set (intentional selection)
-                    if (visibleRows === 1 && selectedPid !== null) {
+                    if (visibleRows === 1) {
                         var rowIndex = table.rows({ filter: 'applied' }).indexes()[0];
                         if (rowIndex !== undefined && data[rowIndex]) {
                             var pid = data[rowIndex].pid;
                             console.log('Single row PID:', pid);
 
-                            // Show map with this pid
-                            $('#map-iframe').attr('src', 'iron_swords_locations.html?pid=' + pid);
+                            // Show map + details for this pid (only reload the iframe if the pid changed)
+                            if (currentDetailPid !== pid) {
+                                $('#map-iframe').attr('src', 'iron_swords_locations.html?pid=' + pid);
+                            }
+                            currentDetailPid = pid;
+                            renderDetails(pid);
                             $('#map-container').show();
                         }
                     } else {
-                        // Hide map when multiple rows visible or no intentional selection
+                        // Hide map + details when multiple rows visible
+                        currentDetailPid = null;
                         $('#map-container').hide();
                     }
                 });
@@ -625,11 +788,7 @@
                         if (site === 'other') {
                             // "Other" matches empty or URLs not matching known sites
                             if (!memorialUrl ||
-                                (!memorialUrl.includes('idf.il') &&
-                                    !memorialUrl.includes('laad.btl.gov.il') &&
-                                    !memorialUrl.includes('lezichram.police.gov.il') &&
-                                    !memorialUrl.includes('shabak.gov.il') &&
-                                    !memorialUrl.includes('izkor.gov.il'))) {
+                                !memorialFilterSites.some(function (s) { return memorialUrl.includes(s.site); })) {
                                 return true;
                             }
                         } else if (memorialUrl.includes(site)) {
