@@ -168,21 +168,45 @@
         </div>
     </div>
     <script>
-        // Person images (pid -> URL), loaded independently; the details panel re-renders once they arrive
+        // Person images (pid -> URL), loaded independently; the details panel re-renders once they arrive.
+        // Served by the Apps Script web app in alarms/code/images_webapp.gs (Google Sheet, columns A + AJ).
+        // Paste the deployed /exec URL here; until then the static TSV on GitHub is used.
+        var IMAGES_JSON_URL = 'https://script.google.com/macros/s/AKfycbwJmTVC5TdhBV9pNUvNVR17doYb-JqSmhuLoJqJDcX3pLzltQ6VoY1knZFQpr8qB7xxbg/exec';
         var imageMap = {};
         var currentDetailPid = null;
         var renderDetails = null; // assigned once the main data is loaded
-        Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/images.tsv", {
-            download: true,
-            header: true,
-            delimiter: "\t",
-            complete: function (imgResults) {
-                imgResults.data.forEach(function (r) {
-                    if (r.pid && r.URL) imageMap[r.pid.trim()] = r.URL.trim();
+        function onImagesLoaded() {
+            if (currentDetailPid !== null && renderDetails) renderDetails(currentDetailPid);
+        }
+        function loadImagesFromTsv() {
+            Papa.parse("https://raw.githubusercontent.com/yuval-harpaz/alarms/refs/heads/master/data/images.tsv", {
+                download: true,
+                header: true,
+                delimiter: "\t",
+                complete: function (imgResults) {
+                    imgResults.data.forEach(function (r) {
+                        if (r.pid && r.URL) imageMap[r.pid.trim()] = r.URL.trim();
+                    });
+                    onImagesLoaded();
+                }
+            });
+        }
+        if (IMAGES_JSON_URL.indexOf('https://') === 0) {
+            fetch(IMAGES_JSON_URL)
+                .then(function (resp) { return resp.json(); })
+                .then(function (json) {
+                    Object.keys(json).forEach(function (pid) {
+                        if (json[pid]) imageMap[String(pid).trim()] = String(json[pid]).trim();
+                    });
+                    onImagesLoaded();
+                })
+                .catch(function (err) {
+                    console.warn('Images web app failed, falling back to images.tsv', err);
+                    loadImagesFromTsv();
                 });
-                if (currentDetailPid !== null && renderDetails) renderDetails(currentDetailPid);
-            }
-        });
+        } else {
+            loadImagesFromTsv();
+        }
 
         // Load geni data first, then main CSV
         var geniMap = {};
