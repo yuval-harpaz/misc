@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>הרוגים מהשבעה באוקטובר</title>
-<link rel="icon" type="image/png" href="https://oct7database.com/logo.png">
+<link rel="icon" href="https://github.com/yuval-harpaz/alarms/blob/master/docs/logo.png?raw=true" type="image/x-icon" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
@@ -83,6 +83,11 @@
   .source-link img {
     width: 20px;
     height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    max-width: 20px;
+    max-height: 20px;
+    display: block;
     border-radius: 4px;
     object-fit: cover;
   }
@@ -148,12 +153,19 @@
   <div class="totals-row" id="totalsRow"></div>
   <div class="subtitle">התפלגות מצטברת של הרוגים לפי תאריך מוות, מ-7 באוקטובר 2023 ועד היום</div>
   <a class="source-link" href="https://oct7database.com" target="_blank" rel="noopener">
-    <img src="https://oct7database.com/logo.png" alt="oct7database logo">
+    <img
+      src="https://static.wixstatic.com/media/b41f40_eb07cd409a4b4f68aaad0b12e972626f~mv2.png"
+      alt="oct7database logo"
+      width="20"
+      height="20"
+      loading="eager"
+      decoding="async"
+    >
     <span>המקור: oct7database.com</span>
   </a>
   <div class="legend-note">
     <div class="row"><span class="sq" style="background:#e0a02c"></span><span><b>נפגעים נוספים</b> — מוות מאירוע לבבי, תאונת דרכים או סיבה עקיפה אחרת.</span></div>
-    <div class="row"><span class="sq" style="background:#c0392b"></span><span><b>נרצחים</b> — אזרחים או חיילים שנרצחו כאזרחים.</span></div>
+    <div class="row"><span class="sq" style="background:#c0392b"></span><span><b>נרצחים</b> — אזרחים וחיילים שנרצחו כאזרחים.</span></div>
     <div class="row"><span class="sq" style="background:#6b8e23"></span><span><b>נופלים</b> — חיילים ואזרחים שנפלו בתפקיד.</span></div>
   </div>
 </header>
